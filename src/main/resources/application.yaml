@@ -1,0 +1,5 @@
+quarkus:
+  log:
+    console:
+      enable: true
+      level: DEBUG
