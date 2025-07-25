@@ -17,6 +17,7 @@
 plugins {
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.allopen") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
     id("io.quarkus")
 }
 
@@ -32,6 +33,7 @@ val quarkusPlatformVersion: String by project
 dependencies {
     implementation(enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}"))
     implementation("io.quarkus:quarkus-kotlin")
+    implementation("io.quarkus:quarkus-rest-kotlin-serialization")
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-config-yaml")
@@ -40,6 +42,7 @@ dependencies {
 
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
+    testImplementation("com.varabyte.truthish:truthish:1.0.3")
 }
 
 group = "com.adjectivemonk2"

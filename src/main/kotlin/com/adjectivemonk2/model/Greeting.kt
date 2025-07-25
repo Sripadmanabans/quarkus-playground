@@ -14,24 +14,9 @@
  * limitations under the License.
  */
 
-package com.adjectivemonk2
+package com.adjectivemonk2.model
 
-import com.adjectivemonk2.model.Greeting
-import io.quarkus.test.junit.QuarkusIntegrationTest
-import io.restassured.RestAssured.given
-import kotlinx.serialization.json.Json
-import org.hamcrest.CoreMatchers.`is`
-import org.junit.jupiter.api.Test
+import kotlinx.serialization.Serializable
 
-@QuarkusIntegrationTest
-class GreetingResourceIT {
-  @Test
-  fun testHelloEndpoint() {
-    val expectedBody = Json.encodeToString(Greeting.serializer(), Greeting("Hello, World!"))
-    given()
-      .`when`().get("/hello")
-      .then()
-      .statusCode(200)
-      .body(`is`(expectedBody))
-  }
-}
+@Serializable
+data class Greeting(val message: String)

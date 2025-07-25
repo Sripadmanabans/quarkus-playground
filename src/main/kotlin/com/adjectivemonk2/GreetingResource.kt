@@ -16,17 +16,18 @@
 
 package com.adjectivemonk2
 
+import com.adjectivemonk2.model.Greeting
 import jakarta.inject.Inject
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
 import org.jboss.logging.Logger
 
-@Path("/hello")
+@Path("hello")
 class GreetingResource @Inject constructor(private val logger: Logger) {
 
   @GET
-  fun hello(): String {
-    logger.info("Received request for /hello endpoint")
-    return "Hello, World!"
+  suspend fun hello(): Greeting {
+    logger.info("Received request for hello endpoint")
+    return Greeting("Hello, World!")
   }
 }

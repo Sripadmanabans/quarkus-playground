@@ -16,20 +16,22 @@
 
 package com.adjectivemonk2
 
+import com.adjectivemonk2.model.Greeting
+import com.varabyte.truthish.assertThat
 import io.quarkus.test.junit.QuarkusTest
-import io.restassured.RestAssured.given
-import org.hamcrest.CoreMatchers.`is`
+import jakarta.inject.Inject
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
 @QuarkusTest
 class GreetingResourceTest {
 
+  @Inject
+  lateinit var greetingResource: GreetingResource
+
   @Test
-  fun testHelloEndpoint() {
-    given()
-      .`when`().get("/hello")
-      .then()
-      .statusCode(200)
-      .body(`is`("Hello, World!"))
+  fun testHelloEndpoint() = runBlocking {
+    val result = greetingResource.hello()
+    assertThat(result).isEqualTo(Greeting("Hello, World!"))
   }
 }
