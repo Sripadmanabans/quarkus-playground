@@ -14,59 +14,55 @@
  * limitations under the License.
  */
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.allopen") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
-    id("io.quarkus")
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.kotlin.allopen)
+  alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.quarkus)
 }
 
 repositories {
-    mavenCentral()
-    mavenLocal()
+  mavenCentral()
+  mavenLocal()
 }
 
-val quarkusPlatformGroupId: String by project
-val quarkusPlatformArtifactId: String by project
-val quarkusPlatformVersion: String by project
-
 dependencies {
-    implementation(enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}"))
-    implementation("io.quarkus:quarkus-kotlin")
-    implementation("io.quarkus:quarkus-rest-kotlin-serialization")
-    implementation("io.quarkus:quarkus-arc")
-    implementation("io.quarkus:quarkus-rest")
-    implementation("io.quarkus:quarkus-config-yaml")
+  implementation(enforcedPlatform(libs.quarkus.bom))
+  implementation(libs.quarkus.kotlin)
+  implementation(libs.quarkus.rest.kotlin.serialization)
+  implementation(libs.quarkus.arc)
+  implementation(libs.quarkus.rest)
+  implementation(libs.quarkus.config.yaml)
 
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-
-    testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("io.rest-assured:rest-assured")
-    testImplementation("com.varabyte.truthish:truthish:1.0.3")
+  testImplementation(libs.quarkus.junit5)
+  testImplementation(libs.rest.assured)
+  testImplementation(libs.truthish)
 }
 
 group = "com.adjectivemonk2"
 version = "1.0.0-SNAPSHOT"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_24
-    targetCompatibility = JavaVersion.VERSION_24
+  sourceCompatibility = JavaVersion.VERSION_24
+  targetCompatibility = JavaVersion.VERSION_24
 }
 
 tasks.withType<Test> {
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
+  systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
 }
 
 allOpen {
-    annotation("jakarta.ws.rs.Path")
-    annotation("jakarta.enterprise.context.ApplicationScoped")
-    annotation("jakarta.persistence.Entity")
-    annotation("io.quarkus.test.junit.QuarkusTest")
+  annotation("jakarta.ws.rs.Path")
+  annotation("jakarta.enterprise.context.ApplicationScoped")
+  annotation("jakarta.persistence.Entity")
+  annotation("io.quarkus.test.junit.QuarkusTest")
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_24
-        javaParameters = true
-    }
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_24
+    javaParameters = true
+  }
 }

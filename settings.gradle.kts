@@ -15,15 +15,10 @@
  */
 
 pluginManagement {
-    val quarkusPluginVersion: String by settings
-    val quarkusPluginId: String by settings
-    repositories {
-        mavenCentral()
-        gradlePluginPortal()
-        mavenLocal()
-    }
-    plugins {
-        id(quarkusPluginId) version quarkusPluginVersion
-    }
+  repositories {
+    mavenCentral()
+    gradlePluginPortal()
+  }
 }
-rootProject.name="quarkus-playground"
+
+rootProject.name = "quarkus-playground"
