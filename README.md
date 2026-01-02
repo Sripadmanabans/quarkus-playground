@@ -53,6 +53,55 @@ You can then execute your native executable with: `./build/quarkus-playground-1.
 
 If you want to learn more about building native executables, please consult <https://quarkus.io/guides/gradle-tooling>.
 
+## Kubernetes Deployment
+
+The project includes Kubernetes manifests in the `k8s/` directory for deploying the application to a Kubernetes cluster.
+
+### Resources
+
+The deployment creates the following resources:
+
+- **Namespace**: `playground` - isolates application resources
+- **Service**: `playground-service` - NodePort service exposing port 8080
+- **Deployment**: `playground-deployment` - single replica deployment
+
+### Building the Docker Image
+
+Before deploying, build the native Docker image:
+
+```shell script
+./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+docker build -f src/main/docker/Dockerfile.native-micro -t quarkus/quarkus-playground:1.0 .
+```
+
+### Deploying to Kubernetes
+
+Apply the Kubernetes manifests:
+
+```shell script
+kubectl apply -f k8s/deployment.yaml
+```
+
+### Accessing the Application
+
+Once deployed, access the application via the NodePort service:
+
+```shell script
+# Get the NodePort assigned to the service
+kubectl get svc playground-service -n playground
+
+# Access the application (replace <NODE_IP> and <NODE_PORT> with actual values)
+curl http://<NODE_IP>:<NODE_PORT>/hello
+```
+
+### Cleanup
+
+To remove all deployed resources:
+
+```shell script
+kubectl delete -f k8s/deployment.yaml
+```
+
 ## Related Guides
 
 - Kotlin ([guide](https://quarkus.io/guides/kotlin)): Write your services in Kotlin

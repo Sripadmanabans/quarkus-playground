@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: playground
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: playground-service
+  namespace: playground
+  labels:
+    app: playground-app
+spec:
+  selector:
+    app: playground-app
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-deployment
+  namespace: playground
+  labels:
+    app: playground-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: playground-app
+  template:
+    metadata:
+      labels:
+        app: playground-app
+    spec:
+      containers:
+        - name: playground-app
+          image: quarkus/quarkus-playground:1.0
+          ports:
+            - containerPort: 8080
