@@ -1,7 +1,7 @@
 [versions]
-kotlin = "2.2.0"
-quarkus = "3.25.0"
-truthish = "1.0.3"
+kotlin = "2.3.0"
+quarkus = "3.30.5"
+truthish = "1.0.4"
 
 [libraries]
 quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }

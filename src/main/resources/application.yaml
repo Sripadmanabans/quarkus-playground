@@ -1,5 +1,5 @@
 quarkus:
   log:
     console:
-      enable: true
+      enabled: true
       level: DEBUG
