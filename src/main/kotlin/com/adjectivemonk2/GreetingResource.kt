@@ -20,14 +20,15 @@ import com.adjectivemonk2.model.Greeting
 import jakarta.inject.Inject
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
+import jakarta.ws.rs.QueryParam
 import org.jboss.logging.Logger
 
 @Path("hello")
 class GreetingResource @Inject constructor(private val logger: Logger) {
 
   @GET
-  suspend fun hello(): Greeting {
-    logger.info("Received request for hello endpoint")
-    return Greeting("Hello, World!")
+  suspend fun hello(@QueryParam("name") name: String?): Greeting {
+    logger.info("Received request for hello endpoint with name: $name")
+    return Greeting("Hello, World from ${name ?: "Unnamed"}!")
   }
 }

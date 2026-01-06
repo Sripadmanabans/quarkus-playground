@@ -30,8 +30,14 @@ class GreetingResourceTest {
   lateinit var greetingResource: GreetingResource
 
   @Test
-  fun testHelloEndpoint() = runBlocking {
-    val result = greetingResource.hello()
-    assertThat(result).isEqualTo(Greeting("Hello, World!"))
+  fun testHelloEndpointWithoutQueryParameter() = runBlocking {
+    val result = greetingResource.hello(null)
+    assertThat(result).isEqualTo(Greeting("Hello, World from Unnamed!"))
+  }
+
+  @Test
+  fun testHelloEndpointWithQueryParameter() = runBlocking {
+    val result = greetingResource.hello("Alice")
+    assertThat(result).isEqualTo(Greeting("Hello, World from Alice!"))
   }
 }
