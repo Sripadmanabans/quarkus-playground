@@ -55,15 +55,30 @@ If you want to learn more about building native executables, please consult <htt
 
 ## Kubernetes Deployment
 
-The project includes Kubernetes manifests in the `k8s/` directory for deploying the application to a Kubernetes cluster.
+The project includes Kubernetes manifests in the `k8s/` directory for deploying the application to a Kubernetes cluster using [Kustomize](https://kustomize.io/).
+
+### Directory Structure
+
+```
+k8s/
+├── kustomization.yaml  # Kustomize configuration
+├── namespace.yaml      # Namespace definition
+├── deployment.yaml     # Deployment definition
+└── service.yaml        # Service definition
+```
 
 ### Resources
 
 The deployment creates the following resources:
 
-- **Namespace**: `playground` - isolates application resources
+- **Namespace**: `playground-namespace` - isolates application resources
 - **Service**: `playground-service` - NodePort service exposing port 8080
 - **Deployment**: `playground-deployment` - single replica deployment
+
+The `kustomization.yaml` uses:
+- `namePrefix: playground-` to prefix all resource names
+- `namespace` to set the target namespace for all resources
+- `labels` to apply common labels across all resources
 
 ### Building the Docker Image
 
@@ -76,10 +91,16 @@ docker build -f src/main/docker/Dockerfile.native-micro -t quarkus/quarkus-playg
 
 ### Deploying to Kubernetes
 
+Preview the generated manifests:
+
+```shell script
+kubectl kustomize k8s/
+```
+
 Apply the Kubernetes manifests:
 
 ```shell script
-kubectl apply -f k8s/deployment.yaml
+kubectl apply -k k8s/
 ```
 
 ### Accessing the Application
@@ -88,7 +109,7 @@ Once deployed, access the application via the NodePort service:
 
 ```shell script
 # Get the NodePort assigned to the service
-kubectl get svc playground-service -n playground
+kubectl get svc playground-service -n playground-namespace
 
 # Access the application (replace <NODE_IP> and <NODE_PORT> with actual values)
 curl http://<NODE_IP>:<NODE_PORT>/hello
@@ -99,7 +120,7 @@ curl http://<NODE_IP>:<NODE_PORT>/hello
 To remove all deployed resources:
 
 ```shell script
-kubectl delete -f k8s/deployment.yaml
+kubectl delete -k k8s/
 ```
 
 ## Related Guides
