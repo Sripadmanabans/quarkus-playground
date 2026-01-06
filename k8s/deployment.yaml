@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: playground
+  name: playground-namespace
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: playground-deployment
-  namespace: playground
+  namespace: playground-namespace
   labels:
     app: playground-app
 spec:
@@ -37,7 +37,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: playground-service
-  namespace: playground
+  namespace: playground-namespace
   labels:
     app: playground-app
 spec:
