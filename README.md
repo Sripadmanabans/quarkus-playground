@@ -55,16 +55,20 @@ If you want to learn more about building native executables, please consult <htt
 
 ## Kubernetes Deployment
 
-The project includes Kubernetes manifests in the `k8s/` directory for deploying the application to a Kubernetes cluster using [Kustomize](https://kustomize.io/).
+The project includes a [Helm](https://helm.sh/) chart in the `helm/quarkus-playground/` directory for deploying the application to a Kubernetes cluster.
 
 ### Directory Structure
 
 ```
-k8s/
-├── kustomization.yaml  # Kustomize configuration
-├── namespace.yaml      # Namespace definition
-├── deployment.yaml     # Deployment definition
-└── service.yaml        # Service definition
+helm/
+└── quarkus-playground/
+    ├── Chart.yaml              # Helm chart metadata
+    ├── values.yaml             # Default configuration values
+    └── templates/
+        ├── _helpers.tpl        # Template helpers
+        ├── namespace.yaml      # Namespace template
+        ├── deployment.yaml     # Deployment template
+        └── service.yaml        # Service template
 ```
 
 ### Resources
@@ -72,13 +76,27 @@ k8s/
 The deployment creates the following resources:
 
 - **Namespace**: `playground-namespace` - isolates application resources
-- **Service**: `playground-service` - NodePort service exposing port 8080
-- **Deployment**: `playground-deployment` - single replica deployment
+- **Service**: `playground-quarkus-playground-service` - NodePort service exposing port 8080
+- **Deployment**: `playground-quarkus-playground-deployment` - single replica deployment
 
-The `kustomization.yaml` uses:
-- `namePrefix: playground-` to prefix all resource names
-- `namespace` to set the target namespace for all resources
-- `labels` to apply common labels across all resources
+### Configuration
+
+Key values in `values.yaml`:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `namespace.create` | Create namespace | `true` |
+| `namespace.name` | Namespace name | `playground-namespace` |
+| `replicaCount` | Number of replicas | `1` |
+| `image.repository` | Image repository | `quarkus/quarkus-playground` |
+| `image.tag` | Image tag | `1.0` |
+| `image.pullPolicy` | Image pull policy | `Always` |
+| `service.type` | Service type | `NodePort` |
+| `service.port` | Service port | `8080` |
+| `resources.requests.memory` | Memory request | `128Mi` |
+| `resources.requests.cpu` | CPU request | `100m` |
+| `resources.limits.memory` | Memory limit | `256Mi` |
+| `resources.limits.cpu` | CPU limit | `500m` |
 
 ### Building the Docker Image
 
@@ -94,13 +112,25 @@ docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quarkus-playground:1.0
 Preview the generated manifests:
 
 ```shell script
-kubectl kustomize k8s/
+helm template my-release helm/quarkus-playground/
 ```
 
-Apply the Kubernetes manifests:
+Install the Helm chart:
 
 ```shell script
-kubectl apply -k k8s/
+helm install my-release helm/quarkus-playground/
+```
+
+Upgrade an existing release:
+
+```shell script
+helm upgrade my-release helm/quarkus-playground/
+```
+
+Override values during installation:
+
+```shell script
+helm install my-release helm/quarkus-playground/ --set replicaCount=3 --set image.tag=2.0
 ```
 
 ### Accessing the Application
@@ -109,7 +139,7 @@ Once deployed, access the application via the NodePort service:
 
 ```shell script
 # Get the NodePort assigned to the service
-kubectl get svc playground-service -n playground-namespace
+kubectl get svc playground-quarkus-playground-service -n playground-namespace
 
 # Access the application (replace <NODE_IP> and <NODE_PORT> with actual values)
 curl http://<NODE_IP>:<NODE_PORT>/hello
@@ -120,7 +150,7 @@ curl http://<NODE_IP>:<NODE_PORT>/hello
 To remove all deployed resources:
 
 ```shell script
-kubectl delete -k k8s/
+helm uninstall my-release
 ```
 
 ## Related Guides
