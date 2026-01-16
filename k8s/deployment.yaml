@@ -11,6 +11,7 @@ spec:
     spec:
       containers:
         - name: app
+          imagePullPolicy: Always
           image: quarkus/quarkus-playground:1.0
           ports:
             - containerPort: 8080

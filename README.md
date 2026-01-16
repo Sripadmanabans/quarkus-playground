@@ -82,11 +82,11 @@ The `kustomization.yaml` uses:
 
 ### Building the Docker Image
 
-Before deploying, build the native Docker image:
+Before deploying, build the JVM Docker image:
 
 ```shell script
-./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
-docker build -f src/main/docker/Dockerfile.native-micro -t quarkus/quarkus-playground:1.0 .
+./gradlew build
+docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quarkus-playground:1.0 .
 ```
 
 ### Deploying to Kubernetes

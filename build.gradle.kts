@@ -45,8 +45,8 @@ group = "com.adjectivemonk2"
 version = "1.0.0-SNAPSHOT"
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_24
-  targetCompatibility = JavaVersion.VERSION_24
+  sourceCompatibility = JavaVersion.VERSION_25
+  targetCompatibility = JavaVersion.VERSION_25
 }
 
 tasks.withType<Test> {
@@ -62,7 +62,7 @@ allOpen {
 
 kotlin {
   compilerOptions {
-    jvmTarget = JvmTarget.JVM_24
+    jvmTarget = JvmTarget.JVM_25
     javaParameters = true
   }
 }
