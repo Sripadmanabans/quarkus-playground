@@ -35,8 +35,14 @@ dependencies {
   implementation(libs.quarkus.arc)
   implementation(libs.quarkus.rest)
   implementation(libs.quarkus.config.yaml)
+  implementation(libs.quarkus.mongodb.client)
+  implementation(libs.coroutines.core)
+
+  implementation(platform(libs.mongo.bom))
+  implementation(libs.mongo.driver)
 
   testImplementation(libs.quarkus.junit5)
+  testImplementation(libs.coroutines.test)
   testImplementation(libs.rest.assured)
   testImplementation(libs.truthish)
 }

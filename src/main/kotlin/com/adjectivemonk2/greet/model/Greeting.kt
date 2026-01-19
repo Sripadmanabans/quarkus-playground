@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.adjectivemonk2.model
+package com.adjectivemonk2.greet.model
 
 import kotlinx.serialization.Serializable
 

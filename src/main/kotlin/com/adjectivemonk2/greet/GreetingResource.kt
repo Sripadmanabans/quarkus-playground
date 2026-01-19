@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.adjectivemonk2
+package com.adjectivemonk2.greet
 
-import com.adjectivemonk2.model.Greeting
+import com.adjectivemonk2.greet.model.Greeting
 import jakarta.inject.Inject
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path

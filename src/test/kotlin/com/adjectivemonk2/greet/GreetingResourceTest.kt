@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.adjectivemonk2
+package com.adjectivemonk2.greet
 
-import com.adjectivemonk2.model.Greeting
+import com.adjectivemonk2.greet.model.Greeting
 import com.varabyte.truthish.assertThat
 import io.quarkus.test.junit.QuarkusTest
 import jakarta.inject.Inject
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 
 @QuarkusTest
@@ -30,13 +30,13 @@ class GreetingResourceTest {
   lateinit var greetingResource: GreetingResource
 
   @Test
-  fun testHelloEndpointWithoutQueryParameter() = runBlocking {
+  fun testHelloEndpointWithoutQueryParameter() = runTest {
     val result = greetingResource.hello(null)
     assertThat(result).isEqualTo(Greeting("Hello, World from Unnamed!"))
   }
 
   @Test
-  fun testHelloEndpointWithQueryParameter() = runBlocking {
+  fun testHelloEndpointWithQueryParameter() = runTest {
     val result = greetingResource.hello("Alice")
     assertThat(result).isEqualTo(Greeting("Hello, World from Alice!"))
   }

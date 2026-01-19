@@ -2,8 +2,16 @@ nameOverride: ""
 fullnameOverride: ""
 
 namespace:
-  create: true
-  name: quarkus-playground
+  create: false
+  name: playground
+
+mongodb:
+  # Percona MongoDB cluster name
+  clusterName: mongo-cluster
+  clusterServiceName: mongo-cluster-psmdb-d-rs0
+  # Secret name is derived as: <clusterName>-secrets
+  # For sharded cluster, connects to mongos service: <clusterName>-mongos
+  authDatabase: admin
 
 replicaCount: 1
 

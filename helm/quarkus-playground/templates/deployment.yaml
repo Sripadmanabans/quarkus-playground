@@ -21,5 +21,20 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.service.targetPort }}
+          env:
+            - name: QUARKUS_MONGODB_HOSTS
+              value: "{{ .Values.mongodb.clusterServiceName }}.{{ include "quarkus-playground.namespace" . }}.svc.cluster.local:27017"
+            - name: QUARKUS_MONGODB_CREDENTIALS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.clusterName }}-psmdb-d-secrets
+                  key: MONGODB_DATABASE_ADMIN_USER
+            - name: QUARKUS_MONGODB_CREDENTIALS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.clusterName }}-psmdb-d-secrets
+                  key: MONGODB_DATABASE_ADMIN_PASSWORD
+            - name: QUARKUS_MONGODB_CREDENTIALS_AUTH_SOURCE
+              value: "{{ .Values.mongodb.authDatabase }}"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

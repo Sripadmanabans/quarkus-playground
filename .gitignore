@@ -30,6 +30,9 @@ replay_pid*
 .gradle
 build/
 
+# IDE compile output
+bin/
+
 # IntelliJ
 .idea
 *.ipr
