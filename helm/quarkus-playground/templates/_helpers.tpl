@@ -48,3 +48,14 @@ Namespace name
 {{- define "quarkus-playground.namespace" -}}
 {{- .Values.namespace.name }}
 {{- end }}
+
+{{/*
+Create a connection hosts to monogo.
+*/}}
+{{- define "quarkus-playground.mongoHosts" -}}
+{{- if .Values.mongo.sharding.enabled }}
+{{- printf "%s-mongo-mongos.%s.svc.cluster.local:27017" .Release.Name .Values.namespace.name }}
+{{- else }}
+{{- printf "%s-mongo-rs0.%s.svc.cluster.local:27017" .Release.Name .Values.namespace.name }}
+{{- end }}
+{{- end }}

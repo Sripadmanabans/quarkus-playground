@@ -30,13 +30,14 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 
 **Request/Response format:**
 
-```json
+```json5
 // POST/PUT request body
 {
   "title": "My Note",
   "content": "Note content here"
 }
-
+```
+```json5
 // Response
 {
   "id": "507f1f77bcf86cd799439011",
@@ -125,9 +126,12 @@ The Percona Operator (installed in `psmdb` namespace) manages the MongoDB cluste
 helm/
 └── quarkus-playground/
     ├── Chart.yaml                       # Helm chart metadata
+    ├── Chart.lock                       # Dependency lock file
     ├── values.yaml                      # Default configuration values
-    ├── percona-mongo-values.yaml        # Percona MongoDB values (production)
-    ├── percona-mongo-local-values.yaml  # Percona MongoDB values (local/dev)
+    ├── mongo-values.yaml                # Percona MongoDB values (production)
+    ├── mongo-local-values.yaml          # Percona MongoDB values (local/dev)
+    ├── charts/                          # Packaged dependency charts
+    │   └── psmdb-db-1.21.2.tgz         # Percona MongoDB chart dependency
     └── templates/
         ├── _helpers.tpl                 # Template helpers
         ├── namespace.yaml               # Namespace template
@@ -158,32 +162,6 @@ helm install psmdb-operator percona/psmdb-operator \
   --create-namespace
 ```
 
-**4. Deploy MongoDB** using the Percona helm chart with the provided values:
-
-For local environments (single replica):
-
-```shell script
-helm install mongo-cluster percona/psmdb-db \
-  --namespace playground \
-  -f helm/quarkus-playground/percona-mongo-local-values.yaml
-```
-
-For production/development environments (3-replica sharded cluster):
-
-```shell script
-helm install mongo-cluster percona/psmdb-db \
-  --namespace playground \
-  -f helm/quarkus-playground/percona-mongo-values.yaml
-```
-
-**5. Wait for MongoDB to be ready:**
-
-```shell script
-kubectl get psmdb -n playground --watch
-```
-
-The cluster is ready when it shows `ready` status.
-
 ### Configuration
 
 Key values in `values.yaml`:
@@ -203,15 +181,7 @@ Key values in `values.yaml`:
 | `resources.limits.memory` | Memory limit | `256Mi` |
 | `resources.limits.cpu` | CPU limit | `500m` |
 
-**MongoDB Connection Configuration:**
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `mongodb.clusterName` | Percona MongoDB cluster name | `mongo-cluster` |
-| `mongodb.clusterServiceName` | MongoDB service name | `mongo-cluster-psmdb-d-rs0` |
-| `mongodb.authDatabase` | Authentication database | `admin` |
-
-> **Note:** The application automatically reads MongoDB credentials from the Percona-generated secret (`<clusterName>-psmdb-d-secrets`).
+> **Note:** The application automatically reads MongoDB credentials from the Percona-generated secret (`<clusterName>-mongo-secrets`).
 
 ### Building the Docker Image
 
@@ -226,29 +196,39 @@ docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quarkus-playground:1.0
 
 **Ensure MongoDB is running first** (see Prerequisites above).
 
-Preview the generated manifests:
+#### Preview the generated manifests:
 
 ```shell script
-helm template my-release helm/quarkus-playground/
+helm template my-release helm/quarkus-playground/ \
+  --values helm/quarkus-playground/values.yaml \
+  --values helm/quarkus-playground/mongo-values(|-local).yaml
 ```
 
-Install the Helm chart:
-
-```shell script
-helm install my-release helm/quarkus-playground/ --namespace playground
-```
-
-Upgrade an existing release:
-
-```shell script
-helm upgrade my-release helm/quarkus-playground/ --namespace playground
-```
-
-Override values during installation:
+#### Install the Helm chart:
 
 ```shell script
 helm install my-release helm/quarkus-playground/ \
   --namespace playground \
+  --values helm/quarkus-playground/values.yaml \
+  --values helm/quarkus-playground/mongo-values(|-local).yaml
+```
+
+#### Upgrade an existing release:
+
+```shell script
+helm upgrade my-release helm/quarkus-playground/ \
+  --namespace playground \
+  --values helm/quarkus-playground/values.yaml \
+  --values helm/quarkus-playground/mongo-values(|-local).yaml
+```
+
+#### Override values during installation:
+
+```shell script
+helm install my-release helm/quarkus-playground/ \
+  --namespace playground \
+  --values helm/quarkus-playground/values.yaml \
+  --values helm/quarkus-playground/mongo-values(|-local).yaml
   --set replicaCount=3 \
   --set image.tag=2.0
 ```
@@ -279,34 +259,28 @@ helm uninstall my-release --namespace playground
 **2. Delete the MongoDB cluster:**
 
 ```shell script
-kubectl delete psmdb mongo-cluster -n playground
+kubectl delete psmdb {my-release}-mongo -n playground
 ```
 
-**3. Remove the MongoDB Helm release:**
-
-```shell script
-helm uninstall mongo-cluster --namespace playground
-```
-
-**4. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
+**3. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
 
 ```shell script
 # List and delete PVCs
 kubectl get pvc -n playground
-kubectl delete pvc -l app.kubernetes.io/instance=mongo-cluster -n playground
+kubectl delete pvc -l app.kubernetes.io/instance={my-release}-mongo -n playground
 
 # List and delete Secrets
 kubectl get secrets -n playground
-kubectl delete secret -l app.kubernetes.io/instance=mongo-cluster -n playground
+kubectl delete secret -l app.kubernetes.io/instance={my-release}-mongo -n playground
 ```
 
-**5. Delete the namespace** (optional):
+**4. Delete the namespace** (optional):
 
 ```shell script
 kubectl delete namespace playground
 ```
 
-**6. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
+**5. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
 
 ```shell script
 helm uninstall psmdb-operator --namespace psmdb
@@ -319,20 +293,22 @@ kubectl delete namespace psmdb
 
 Two configuration files are provided for deploying MongoDB:
 
-| File | Use Case | Replicas | Sharding |
-|------|----------|----------|----------|
-| `percona-mongo-local-values.yaml` | Local/development | 1 | Disabled |
-| `percona-mongo-values.yaml` | Production | 3 | Enabled |
+| File | Use Case              | Replicas | Sharding |
+|------|-----------------------|----------|----------|
+| `mongo-local-values.yaml` | Local                 | 1 | Disabled |
+| `mongo-values.yaml` | Development | 3 | Enabled |
 
 **Local values** use relaxed settings (`unsafeFlags.replsetSize: true`) suitable for single-node development clusters.
 
-**Production values** configure a 3-node replica set with sharding enabled for high availability and horizontal scaling.
+**Development values** configure a 3-node replica set with sharding enabled for high availability and horizontal scaling.
+
+> **Note:** The Helm chart now includes MongoDB as a dependency (defined in `Chart.yaml`). The dependency chart is packaged in the `charts/` directory and locked in `Chart.lock`. To update dependencies, run `helm dependency update helm/quarkus-playground/`.
 
 ## Future Enhancements
 
 The MongoDB setup supports additional features:
 
-- **Backups**: Enable in `percona-mongo-values.yaml` and configure storage (S3, GCS, Azure)
+- **Backups**: Enable in `mongo-values.yaml` and configure storage (S3, GCS, Azure)
 - **Monitoring**: Enable PMM (Percona Monitoring and Management) integration
 - **Failover Testing**: The 3-node replica set supports automatic failover
 

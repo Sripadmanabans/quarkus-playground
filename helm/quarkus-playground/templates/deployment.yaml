@@ -23,18 +23,18 @@ spec:
             - containerPort: {{ .Values.service.targetPort }}
           env:
             - name: QUARKUS_MONGODB_HOSTS
-              value: "{{ .Values.mongodb.clusterServiceName }}.{{ include "quarkus-playground.namespace" . }}.svc.cluster.local:27017"
+              value: "{{- include "quarkus-playground.mongoHosts" .}}"
             - name: QUARKUS_MONGODB_CREDENTIALS_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mongodb.clusterName }}-psmdb-d-secrets
+                  name: {{ .Release.Name }}-mongo-secrets
                   key: MONGODB_DATABASE_ADMIN_USER
             - name: QUARKUS_MONGODB_CREDENTIALS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mongodb.clusterName }}-psmdb-d-secrets
+                  name: {{ .Release.Name }}-mongo-secrets
                   key: MONGODB_DATABASE_ADMIN_PASSWORD
             - name: QUARKUS_MONGODB_CREDENTIALS_AUTH_SOURCE
-              value: "{{ .Values.mongodb.authDatabase }}"
+              value: "{{ .Values.mongo.authDatabase }}"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

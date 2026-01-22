@@ -2,7 +2,7 @@
 coroutines = "1.10.2"
 kotlin = "2.3.0"
 mongo = "5.6.1"
-quarkus = "3.30.5"
+quarkus = "3.30.6"
 truthish = "1.0.4"
 
 [libraries]

@@ -4,3 +4,8 @@ description: A Helm chart for deploying the Quarkus Playground application
 type: application
 version: 0.1.0
 appVersion: "1.0"
+dependencies:
+  - name: psmdb-db
+    version: 1.21.2
+    repository: https://percona.github.io/percona-helm-charts
+    alias: mongo # Be careful when changing this. This is implicitly used in a lot of places to connect to mongo.

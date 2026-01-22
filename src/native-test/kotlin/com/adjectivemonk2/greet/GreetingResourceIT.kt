@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 class GreetingResourceIT {
   @Test
   fun testHelloEndpoint() {
-    val expectedBody = Json.Default.encodeToString(Greeting.serializer(), Greeting("Hello, World!"))
+    val expectedBody = Json.encodeToString(Greeting.serializer(), Greeting("Hello, World!"))
     RestAssured.given()
       .`when`().get("/hello")
       .then()
