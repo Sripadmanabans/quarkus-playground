@@ -1,0 +1,78 @@
+# .helmignore for Java/Maven/Gradle projects
+*.iml
+.settings/
+.classpath
+.project
+.metadata/
+
+# Version control
+.jj
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.idea
+.kotlin/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+.gradle
+build
+bin
+target
+*.tgz
+*.tar.gz
+.helmignore.bak
+*.jar
+*.war
+*.ear
+
+# CI/CD configurations
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+azure-pipelines.yml
+.circleci/
+Makefile
+
+# Development files
+Dockerfile
+docker-compose.yml
+.dockerignore
+.editorconfig
+.pre-commit-config.yaml
+
+# Examples and samples
+examples/
+samples/
+demo/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Temporary files
+temp/
+*.tmp
+
+# Schema files (if large and not needed at runtime)
+# values.schema.json  # Uncomment if not needed
+
+# Subchart sources (packaged charts exist in charts/)
+charts/*.tgz.prov
+charts/*.tgz.sig
+
+# Local overrides
+values-local.yaml
+values-dev.yaml
+secrets.yaml
+*.enc.yaml
+.env
+*.local

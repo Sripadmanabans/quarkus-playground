@@ -59,3 +59,10 @@ Create a connection hosts to monogo.
 {{- printf "%s-mongo-rs0.%s.svc.cluster.local:27017" .Release.Name .Values.namespace.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create a connection hosts to redis.
+*/}}
+{{- define "quarkus-playground.redisHosts" -}}
+{{- printf "redis://%s-redis-cluster-headless.%s.svc.cluster.local:6379" .Release.Name .Values.namespace.name }}
+{{- end }}

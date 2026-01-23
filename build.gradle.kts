@@ -36,6 +36,7 @@ dependencies {
   implementation(libs.quarkus.rest)
   implementation(libs.quarkus.config.yaml)
   implementation(libs.quarkus.mongodb.client)
+  implementation(libs.quarkus.redis)
   implementation(libs.coroutines.core)
 
   implementation(platform(libs.mongo.bom))

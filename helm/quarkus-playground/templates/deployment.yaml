@@ -36,5 +36,9 @@ spec:
                   key: MONGODB_DATABASE_ADMIN_PASSWORD
             - name: QUARKUS_MONGODB_CREDENTIALS_AUTH_SOURCE
               value: "{{ .Values.mongo.authDatabase }}"
+            - name: QUARKUS_REDIS_HOSTS
+              value: "{{- include "quarkus-playground.redisHosts" .}}"
+            - name: QUARKUS_REDIS_CLIENT_TYPE
+              value: "cluster"
           resources:
             {{- toYaml .Values.quarkus.resources | nindent 12 }}

@@ -2,5 +2,8 @@ dependencies:
 - name: psmdb-db
   repository: https://percona.github.io/percona-helm-charts
   version: 1.21.2
-digest: sha256:249e394d821c3e1ed5310a44901b1bd4548ef58b9034edb98cd40904c727810b
-generated: "2026-01-23T09:45:20.989465+05:30"
+- name: redis-cluster
+  repository: https://charts.bitnami.com/bitnami
+  version: 13.0.4
+digest: sha256:5ba9ad5c2d1ac443e759d95407ad73a731e3b754f77d536126981cb85f54b865
+generated: "2026-02-03T15:48:02.353404+05:30"

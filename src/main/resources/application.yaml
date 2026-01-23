@@ -5,9 +5,3 @@ quarkus:
       level: DEBUG
   mongodb:
     database: quarkus-playground
-
-"%dev":
-  quarkus:
-    mongodb:
-      connection-string: ${MONGODB_CONNECTION_STRING:mongodb://localhost:27017}
-      database: quarkus-playground

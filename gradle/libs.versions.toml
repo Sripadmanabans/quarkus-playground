@@ -20,6 +20,7 @@ quarkus-rest = { module = "io.quarkus:quarkus-rest" }
 quarkus-config-yaml = { module = "io.quarkus:quarkus-config-yaml" }
 quarkus-mongodb-client = { module = "io.quarkus:quarkus-mongodb-client" }
 quarkus-junit5 = { module = "io.quarkus:quarkus-junit5" }
+quarkus-redis = { module = "io.quarkus:quarkus-redis-client" }
 
 rest-assured = { module = "io.rest-assured:rest-assured" }
 
