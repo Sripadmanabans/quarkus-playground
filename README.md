@@ -170,16 +170,16 @@ Key values in `values.yaml`:
 |-----------|-------------|---------|
 | `namespace.create` | Create namespace | `false` |
 | `namespace.name` | Namespace name | `playground` |
-| `replicaCount` | Number of app replicas | `1` |
-| `image.repository` | Image repository | `quarkus/quarkus-playground` |
-| `image.tag` | Image tag | `1.0` |
-| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `service.type` | Service type | `NodePort` |
-| `service.port` | Service port | `8080` |
-| `resources.requests.memory` | Memory request | `128Mi` |
-| `resources.requests.cpu` | CPU request | `100m` |
-| `resources.limits.memory` | Memory limit | `256Mi` |
-| `resources.limits.cpu` | CPU limit | `500m` |
+| `quarkus.replicaCount` | Number of app replicas | `1` |
+| `quarkus.image.repository` | Image repository | `quarkus/quarkus-playground` |
+| `quarkus.image.tag` | Image tag | `1.0` |
+| `quarkus.image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `quarkus.service.type` | Service type | `NodePort` |
+| `quarkus.service.port` | Service port | `8080` |
+| `quarkus.resources.requests.memory` | Memory request | `128Mi` |
+| `quarkus.resources.requests.cpu` | CPU request | `100m` |
+| `quarkus.resources.limits.memory` | Memory limit | `256Mi` |
+| `quarkus.resources.limits.cpu` | CPU limit | `500m` |
 
 > **Note:** The application automatically reads MongoDB credentials from the Percona-generated secret (`<clusterName>-mongo-secrets`).
 
@@ -229,8 +229,8 @@ helm install my-release helm/quarkus-playground/ \
   --namespace playground \
   --values helm/quarkus-playground/values.yaml \
   --values helm/quarkus-playground/mongo-values(|-local).yaml
-  --set replicaCount=3 \
-  --set image.tag=2.0
+  --set quarkus.replicaCount=3 \
+  --set quarkus.image.tag=2.0
 ```
 
 ### Accessing the Application

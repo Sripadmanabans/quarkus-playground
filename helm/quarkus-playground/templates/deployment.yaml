@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "quarkus-playground.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.quarkus.replicaCount }}
   selector:
     matchLabels:
       {{- include "quarkus-playground.selectorLabels" . | nindent 6 }}
@@ -17,10 +17,10 @@ spec:
     spec:
       containers:
         - name: app
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.quarkus.image.repository }}:{{ .Values.quarkus.image.tag }}"
+          imagePullPolicy: {{ .Values.quarkus.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.service.targetPort }}
+            - containerPort: {{ .Values.quarkus.service.targetPort }}
           env:
             - name: QUARKUS_MONGODB_HOSTS
               value: "{{- include "quarkus-playground.mongoHosts" .}}"
@@ -37,4 +37,4 @@ spec:
             - name: QUARKUS_MONGODB_CREDENTIALS_AUTH_SOURCE
               value: "{{ .Values.mongo.authDatabase }}"
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.quarkus.resources | nindent 12 }}
