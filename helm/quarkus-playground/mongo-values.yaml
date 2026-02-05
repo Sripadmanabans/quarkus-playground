@@ -664,7 +664,7 @@ mongo:
     #   requests:
     #     cpu: "300m"
     #     memory: "1Gi"
-    storages:
+    storages: { }
       # s3-us-west:
       #   main: true
       #   type: s3
@@ -712,13 +712,13 @@ mongo:
       #       prefix: PREFIX-NAME
       #       endpointUrl: https://accountName.blob.core.windows.net
       #       credentialsSecret: SECRET-NAME
-        backup-nfs:
-          type: filesystem
-          filesystem:
-            path: /mnt/nfs/
-    volumeMounts:
-      - mountPath: /mnt/nfs/
-        name: backup-nfs
+      # backup-nfs:
+      #   type: filesystem
+      #   filesystem:
+      #     path: /mnt/nfs/
+    volumeMounts: [ ]
+      # - mountPath: /mnt/nfs/
+      #   name: backup-nfs
     pitr:
       enabled: false
       oplogOnly: false
@@ -743,7 +743,7 @@ mongo:
     #     mongodLocationMap:
     #       "node01:2017": /usr/bin/mongo
     #       "node03:27017": /usr/bin/mongo
-    tasks:
+    tasks: [ ]
     # - name: daily-s3-us-west
     #   enabled: true
     #   schedule: "0 0 * * *"
@@ -762,17 +762,17 @@ mongo:
     #     deleteFromStorage: true
     #   storageName: s3-us-west
     #   compressionType: gzip
-      - name: weekly-s3-us-west-physical
-        enabled: false
-        schedule: "0 5 * * 0"
-        retention:
-          count: 3
-          type: count
-          deleteFromStorage: true
-        type: physical
-        storageName: backup-nfs
-        compressionType: gzip
-        compressionLevel: 6
+    # - name: weekly-s3-us-west-physical
+    #   enabled: false
+    #   schedule: "0 5 * * 0"
+    #   retention:
+    #     count: 3
+    #     type: count
+    #     deleteFromStorage: true
+    #   type: physical
+    #   storageName: backup-nfs
+    #   compressionType: gzip
+    #   compressionLevel: 6
 
   # If you set systemUsers here the secret will be constructed by helm with these values
   # systemUsers:

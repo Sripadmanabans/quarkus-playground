@@ -1,8 +1,8 @@
 [versions]
 coroutines = "1.10.2"
 kotlin = "2.3.0"
-mongo = "5.6.2"
-quarkus = "3.31.1"
+mongo = "5.6.3"
+quarkus = "3.31.2"
 truthish = "1.0.4"
 
 [libraries]
