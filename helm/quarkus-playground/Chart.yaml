@@ -12,3 +12,6 @@ dependencies:
   - name: redis-cluster
     version: 13.0.4
     repository: https://charts.bitnami.com/bitnami
+  - name: eck-stack
+    version: 0.18.0
+    repository: https://helm.elastic.co

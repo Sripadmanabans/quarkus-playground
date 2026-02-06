@@ -40,5 +40,14 @@ spec:
               value: "{{- include "quarkus-playground.redisHosts" .}}"
             - name: QUARKUS_REDIS_CLIENT_TYPE
               value: "cluster"
+            - name: QUARKUS_ELASTICSEARCH_HOSTS
+              value: "{{- include "quarkus-playground.elasticsearchHosts" .}}"
+            - name: QUARKUS_ELASTICSEARCH_USERNAME
+              value: "elastic"
+            - name: QUARKUS_ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-es-elastic-user
+                  key: elastic
           resources:
             {{- toYaml .Values.quarkus.resources | nindent 12 }}

@@ -66,3 +66,11 @@ Create a connection hosts to redis.
 {{- define "quarkus-playground.redisHosts" -}}
 {{- printf "redis://%s-redis-cluster-headless.%s.svc.cluster.local:6379" .Release.Name .Values.namespace.name }}
 {{- end }}
+
+{{/*
+Create a connection host to elasticsearch.
+The service name follows the ECK convention: <fullnameOverride>-es-http.
+*/}}
+{{- define "quarkus-playground.elasticsearchHosts" -}}
+{{- printf "elasticsearch-es-http.%s.svc.cluster.local:9200" .Values.namespace.name }}
+{{- end }}

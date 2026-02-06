@@ -16,6 +16,7 @@
 
 package com.adjectivemonk2.note
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
 import com.adjectivemonk2.note.model.Note
 import com.adjectivemonk2.note.model.NoteData
 import com.mongodb.client.MongoClient
@@ -40,11 +41,24 @@ class NoteResourceTest {
   lateinit var mongoClient: MongoClient
 
   @Inject
-  @ConfigProperty(name = "quarkus.mongodb.database") lateinit var databaseName: String
+  lateinit var elasticsearchClient: ElasticsearchClient
+
+  @Inject
+  @ConfigProperty(name = "quarkus.mongodb.database")
+  lateinit var databaseName: String
 
   @AfterEach
-  fun closeMongoClient() {
+  fun cleanup() {
     mongoClient.getDatabase(databaseName).getCollection("notes", Note::class.java).deleteMany(Filters.empty())
+    val indexExists = elasticsearchClient.indices().exists { it.index("notes") }.value()
+    if (indexExists) {
+      elasticsearchClient.deleteByQuery { it.index("notes").query { q -> q.matchAll { it } } }
+      elasticsearchClient.indices().refresh { it.index("notes") }
+    }
+  }
+
+  private fun refreshElasticsearch() {
+    elasticsearchClient.indices().refresh { it.index("notes") }
   }
 
   @Test
@@ -128,5 +142,29 @@ class NoteResourceTest {
     assertThrows<NotFoundException> {
       noteResource.delete("000000000000000000000000")
     }
+  }
+
+  @Test
+  fun `search by q should find notes matching title`() = runTest {
+    noteResource.create(NoteData(title = "Kotlin Guide", content = "Learn the basics"))
+    noteResource.create(NoteData(title = "Java Guide", content = "Learn Java basics"))
+    refreshElasticsearch()
+
+    val results = noteResource.search(q = "Kotlin")
+
+    assertThat(results.size).isEqualTo(1)
+    assertThat(results.first().title).isEqualTo("Kotlin Guide")
+  }
+
+  @Test
+  fun `search by q should find notes matching content`() = runTest {
+    noteResource.create(NoteData(title = "The Guide", content = "Learn Kotlin basics"))
+    noteResource.create(NoteData(title = "Java Guide", content = "Learn Java basics"))
+    refreshElasticsearch()
+
+    val results = noteResource.search(q = "Kotlin")
+
+    assertThat(results.size).isEqualTo(1)
+    assertThat(results.first().title).isEqualTo("The Guide")
   }
 }

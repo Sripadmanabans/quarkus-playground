@@ -9,7 +9,8 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 - **REST API** with Kotlin coroutines support
 - **MongoDB** integration using the reactive client
 - **Redis Cluster** integration using the reactive Quarkus Redis client
-- **Kubernetes deployment** with Helm charts, Percona MongoDB Operator, and Bitnami Redis Cluster
+- **Elasticsearch** integration for full-text search on notes (dual-write from MongoDB)
+- **Kubernetes deployment** with Helm charts, Percona MongoDB Operator, Bitnami Redis Cluster, and ECK Elasticsearch
 
 ## API Endpoints
 
@@ -19,15 +20,40 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 |--------|----------|-------------|
 | GET | `/hello?name={name}` | Returns a greeting message |
 
-### Notes (MongoDB CRUD)
+### Notes (MongoDB CRUD + Elasticsearch Search)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/notes` | List all notes |
 | GET | `/notes/{id}` | Get a note by ID |
-| POST | `/notes` | Create a new note |
-| PUT | `/notes/{id}` | Update an existing note |
-| DELETE | `/notes/{id}` | Delete a note |
+| GET | `/notes/search` | Search notes via Elasticsearch |
+| POST | `/notes` | Create a new note (also indexed in Elasticsearch) |
+| PUT | `/notes/{id}` | Update an existing note (also re-indexed in Elasticsearch) |
+| DELETE | `/notes/{id}` | Delete a note (also removed from Elasticsearch) |
+
+**Search query parameters** (at least one required):
+
+| Parameter | Description |
+|-----------|-------------|
+| `q` | Full-text search across both title and content |
+| `title` | Match on title field only |
+| `content` | Match on content field only |
+
+Parameters can be combined (AND logic). Examples:
+
+```shell script
+# Search across both title and content
+curl "http://localhost:8080/notes/search?q=kotlin"
+
+# Search by title only
+curl "http://localhost:8080/notes/search?title=guide"
+
+# Search by content only
+curl "http://localhost:8080/notes/search?content=tutorial"
+
+# Combine title and content filters
+curl "http://localhost:8080/notes/search?title=kotlin&content=advanced"
+```
 
 **Request/Response format:**
 
@@ -39,7 +65,7 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 }
 ```
 ```json5
-// Response
+// Response (also used by search)
 {
   "id": "507f1f77bcf86cd799439011",
   "title": "My Note",
@@ -82,7 +108,7 @@ You can run your application in dev mode that enables live coding using:
 ./gradlew quarkusDev
 ```
 
-> **_NOTE:_** In dev mode, Quarkus Dev Services automatically starts MongoDB and Redis containers. No manual setup required!
+> **_NOTE:_** In dev mode, Quarkus Dev Services automatically starts MongoDB, Redis, and Elasticsearch containers. No manual setup required!
 
 > **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
 
@@ -127,30 +153,40 @@ If you want to learn more about building native executables, please consult <htt
 
 ## Kubernetes Deployment
 
-The project includes a [Helm](https://helm.sh/) chart in the `helm/quarkus-playground/` directory for deploying the application to a Kubernetes cluster. MongoDB is deployed separately using the [Percona Operator for MongoDB](https://docs.percona.com/percona-operator-for-mongodb/).
+The project includes a [Helm](https://helm.sh/) chart in the `helm/quarkus-playground/` directory for deploying the application to a Kubernetes cluster. All components — including the [Percona Operator for MongoDB](https://docs.percona.com/percona-operator-for-mongodb/), the [ECK (Elastic Cloud on Kubernetes)](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-overview.html) operator, and the application itself — are deployed in a single `playground` namespace so that operator-generated secrets are directly accessible.
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Kubernetes Cluster                                                          │
-│                                                                             │
-│  ┌─────────────────┐     ┌────────────────────────────────────────────────┐│
-│  │ psmdb namespace │     │ playground namespace                           ││
-│  │                 │     │                                                ││
-│  │ ┌─────────────┐ │     │  ┌──────────┐      ┌─────────────┐            ││
-│  │ │  Percona    │ │     │  │          │─────▶│   MongoDB   │            ││
-│  │ │  Operator   │─┼─────┼─▶│ Quarkus  │      │  (Percona)  │            ││
-│  │ └─────────────┘ │     │  │   App    │      └─────────────┘            ││
-│  └─────────────────┘     │  │          │      ┌─────────────┐            ││
-│                          │  │          │─────▶│   Redis     │            ││
-│                          │  └──────────┘      │  (Bitnami)  │            ││
-│                          │                    └─────────────┘            ││
-│                          └────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+  subgraph cluster["Kubernetes Cluster"]
+    subgraph playground["playground namespace"]
+      percona["Percona Operator"]
+      eckOp["ECK Operator"]
+      app["Quarkus App"]
+      mongo["MongoDB\n(Percona)"]
+      redis["Redis Cluster\n(Bitnami)"]
+      es["Elasticsearch\n(ECK)"]
+
+      app -->|read/write| mongo
+      app -->|read/write| redis
+      app -->|read/write| es
+      percona -.->|manages| mongo
+      eckOp -.->|manages| es
+    end
+  end
+
+  style cluster fill:none,stroke:#999
+  style playground fill:none,stroke:#999,color:#999
+  style app fill:#fff3e0,stroke:#fb8c00,color:#000
+  style mongo fill:#e3f2fd,stroke:#1e88e5,color:#000
+  style redis fill:#fce4ec,stroke:#e53935,color:#000
+  style es fill:#f3e5f5,stroke:#8e24aa,color:#000
+  style percona fill:#e8f0fe,stroke:#4285f4,color:#000
+  style eckOp fill:#e8f0fe,stroke:#4285f4,color:#000
 ```
 
-The Percona Operator (installed in `psmdb` namespace) manages the MongoDB cluster deployed in the `playground` namespace. The Bitnami Redis Cluster is deployed as a Helm subchart. The Quarkus application connects to MongoDB using credentials automatically generated by Percona, and to Redis Cluster via the headless service.
+All components are deployed in the `playground` namespace so that secrets created by the operators are accessible to the application. The Percona Operator manages the MongoDB cluster, and the ECK Operator manages the Elasticsearch cluster. The Bitnami Redis Cluster is deployed as a Helm subchart. The Quarkus application connects to MongoDB using credentials automatically generated by Percona, to Redis Cluster via the headless service, and to Elasticsearch via the ECK-managed HTTP service.
 
 ### Directory Structure
 
@@ -163,6 +199,7 @@ helm/
     ├── mongo-values.yaml                # Percona MongoDB values (production)
     ├── mongo-local-values.yaml          # Percona MongoDB values (local/dev)
     ├── redis-values.yaml                # Bitnami Redis Cluster values
+    ├── eck-stack-values.yaml            # ECK Elasticsearch values
     ├── charts/                          # Packaged dependency charts
     │   ├── psmdb-db-1.21.2.tgz         # Percona MongoDB chart dependency
     │   └── redis-cluster-13.0.4.tgz    # Bitnami Redis Cluster chart dependency
@@ -176,14 +213,16 @@ helm/
 
 ### Prerequisites
 
-**1. Add the Percona Helm repository:**
+**1. Add Helm repositories:**
 
 ```shell script
 helm repo add percona https://percona.github.io/percona-helm-charts/
+helm repo add elastic https://helm.elastic.co
+helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 ```
 
-**2. Create the namespace** for the application and MongoDB:
+**2. Create the namespace** for the application:
 
 ```shell script
 kubectl create namespace playground
@@ -193,8 +232,14 @@ kubectl create namespace playground
 
 ```shell script
 helm install psmdb-operator percona/psmdb-operator \
-  --namespace psmdb \
-  --create-namespace
+  --namespace playground
+```
+
+**4. Install the ECK (Elastic Cloud on Kubernetes) Operator:**
+
+```shell script
+helm install elastic-operator elastic/eck-operator \
+  --namespace playground
 ```
 
 ### Configuration
@@ -236,7 +281,9 @@ docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quarkus-playground:1.0
 ```shell script
 helm template my-release helm/quarkus-playground/ \
   --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml
+  --values helm/quarkus-playground/mongo-values(|-local).yaml \
+  --values helm/quarkus-playground/redis-values.yaml \
+  --values helm/quarkus-playground/eck-stack-values.yaml
 ```
 
 #### Install the Helm chart:
@@ -245,7 +292,9 @@ helm template my-release helm/quarkus-playground/ \
 helm install my-release helm/quarkus-playground/ \
   --namespace playground \
   --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml
+  --values helm/quarkus-playground/mongo-values(|-local).yaml \
+  --values helm/quarkus-playground/redis-values.yaml \
+  --values helm/quarkus-playground/eck-stack-values.yaml
 ```
 
 #### Upgrade an existing release:
@@ -254,7 +303,9 @@ helm install my-release helm/quarkus-playground/ \
 helm upgrade my-release helm/quarkus-playground/ \
   --namespace playground \
   --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml
+  --values helm/quarkus-playground/mongo-values(|-local).yaml \
+  --values helm/quarkus-playground/redis-values.yaml \
+  --values helm/quarkus-playground/eck-stack-values.yaml
 ```
 
 #### Override values during installation:
@@ -263,7 +314,9 @@ helm upgrade my-release helm/quarkus-playground/ \
 helm install my-release helm/quarkus-playground/ \
   --namespace playground \
   --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml
+  --values helm/quarkus-playground/mongo-values(|-local).yaml \
+  --values helm/quarkus-playground/redis-values.yaml \
+  --values helm/quarkus-playground/eck-stack-values.yaml \
   --set quarkus.replicaCount=3 \
   --set quarkus.image.tag=2.0
 ```
@@ -279,6 +332,7 @@ kubectl get svc -n playground
 # Access the application (replace <NODE_IP> and <NODE_PORT> with actual values)
 curl http://<NODE_IP>:<NODE_PORT>/hello
 curl http://<NODE_IP>:<NODE_PORT>/notes
+curl http://<NODE_IP>:<NODE_PORT>/notes/search?q=example
 curl http://<NODE_IP>:<NODE_PORT>/increment
 ```
 
@@ -292,13 +346,7 @@ To remove all deployed resources:
 helm uninstall my-release --namespace playground
 ```
 
-**2. Delete the MongoDB cluster:**
-
-```shell script
-kubectl delete psmdb {my-release}-mongo -n playground
-```
-
-**3. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
+**2. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
 
 ```shell script
 # List and delete PVCs
@@ -310,20 +358,26 @@ kubectl get secrets -n playground
 kubectl delete secret -l app.kubernetes.io/instance={my-release}-mongo -n playground
 ```
 
-**4. Delete the namespace** (optional):
+**3. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
+
+```shell script
+helm uninstall psmdb-operator --namespace playground
+```
+
+**4. Remove the ECK Operator** (optional, if no other Elasticsearch clusters depend on it):
+
+```shell script
+helm uninstall elastic-operator --namespace playground
+kubectl delete crd `kubectl get crds -o custom-columns=NAME:.metadata.name | grep k8s.elastic.co` --namespace playground
+```
+
+**5. Delete the namespace** (optional):
 
 ```shell script
 kubectl delete namespace playground
 ```
 
-**5. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
-
-```shell script
-helm uninstall psmdb-operator --namespace psmdb
-kubectl delete namespace psmdb
-```
-
-> **Note:** See the [Percona documentation](https://docs.percona.com/percona-operator-for-mongodb/delete.html) for detailed cleanup instructions.
+> **Note:** See the [Percona documentation](https://docs.percona.com/percona-operator-for-mongodb/delete.html) and [ECK documentation](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-uninstalling-eck.html) for detailed cleanup instructions.
 
 ### Percona MongoDB Values Files
 
@@ -338,7 +392,23 @@ Two configuration files are provided for deploying MongoDB:
 
 **Development values** configure a 3-node replica set with sharding enabled for high availability and horizontal scaling.
 
-> **Note:** The Helm chart includes MongoDB and Redis Cluster as dependencies (defined in `Chart.yaml`). The dependency charts are packaged in the `charts/` directory and locked in `Chart.lock`. To update dependencies, run `helm dependency update helm/quarkus-playground/`.
+> **Note:** The Helm chart includes MongoDB, Redis Cluster, and Elasticsearch as dependencies (defined in `Chart.yaml`). The dependency charts are packaged in the `charts/` directory and locked in `Chart.lock`. To update dependencies, run `helm dependency update helm/quarkus-playground/`.
+
+### Elasticsearch Configuration
+
+Elasticsearch is deployed using the [ECK Stack Helm chart](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-stack-helm-chart.html) as a subchart dependency. The configuration is defined in `eck-stack-values.yaml`.
+
+| Feature | Configuration |
+|---------|---------------|
+| Version | 9.3.0 |
+| Nodes | 1 (single node) |
+| Memory | 2Gi (requests and limits) |
+| TLS | Disabled (HTTP) |
+| Kibana | Disabled |
+
+The Quarkus application connects to Elasticsearch via the ECK-managed service at `elasticsearch-es-http.<namespace>.svc.cluster.local:9200`. Credentials are read from the `elasticsearch-es-elastic-user` secret auto-created by the ECK Operator.
+
+Notes are automatically indexed into Elasticsearch when created or updated via the REST API, and removed from the index when deleted (dual-write pattern).
 
 ### Redis Cluster Configuration
 
@@ -366,5 +436,7 @@ The MongoDB setup supports additional features:
 - Kotlin ([guide](https://quarkus.io/guides/kotlin)): Write your services in Kotlin
 - MongoDB ([guide](https://quarkus.io/guides/mongodb)): Connect to MongoDB datastores
 - Redis ([guide](https://quarkus.io/guides/redis)): Connect to Redis datastores
+- Elasticsearch ([guide](https://quarkus.io/guides/elasticsearch)): Connect to Elasticsearch clusters
 - Percona Operator ([docs](https://docs.percona.com/percona-operator-for-mongodb/)): MongoDB operator for Kubernetes
 - Bitnami Redis Cluster ([chart](https://github.com/bitnami/charts/tree/main/bitnami/redis-cluster)): Redis Cluster Helm chart
+- ECK Operator ([docs](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-overview.html)): Elasticsearch operator for Kubernetes

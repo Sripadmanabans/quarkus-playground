@@ -20,7 +20,9 @@ import com.adjectivemonk2.note.model.NoteData
 import io.quarkus.test.junit.QuarkusIntegrationTest
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
+import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
+import org.awaitility.Awaitility.await
 import org.hamcrest.CoreMatchers
 import org.junit.jupiter.api.Test
 
@@ -158,5 +160,47 @@ class NoteResourceIT {
       .`when`().delete("/notes/000000000000000000000000")
       .then()
       .statusCode(404)
+  }
+
+  @Test
+  fun testSearchRequiresAtLeastOneParam() {
+    RestAssured.given()
+      .`when`().get("/notes/search")
+      .then()
+      .statusCode(400)
+  }
+
+  @Test
+  fun testSearchByQ() {
+    // Create notes
+    val body1 = json.encodeToString(NoteData.serializer(), NoteData("Kotlin Guide", "Learn Kotlin"))
+    RestAssured.given()
+      .contentType(ContentType.JSON)
+      .body(body1)
+      .`when`().post("/notes")
+      .then()
+      .statusCode(200)
+
+    val body2 = json.encodeToString(NoteData.serializer(), NoteData("Java Guide", "Learn Java"))
+    RestAssured.given()
+      .contentType(ContentType.JSON)
+      .body(body2)
+      .`when`().post("/notes")
+      .then()
+      .statusCode(200)
+
+    // Poll until ES has refreshed and the document is searchable
+    await()
+      .atMost(5, TimeUnit.SECONDS)
+      .pollInterval(200, TimeUnit.MILLISECONDS)
+      .untilAsserted {
+        RestAssured.given()
+          .queryParam("q", "Kotlin")
+          .`when`().get("/notes/search")
+          .then()
+          .statusCode(200)
+          .body("size()", CoreMatchers.`is`(1))
+          .body("[0].title", CoreMatchers.`is`("Kotlin Guide"))
+      }
   }
 }

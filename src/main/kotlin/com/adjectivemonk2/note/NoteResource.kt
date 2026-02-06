@@ -18,6 +18,7 @@ package com.adjectivemonk2.note
 
 import com.adjectivemonk2.note.model.Note
 import com.adjectivemonk2.note.model.NoteData
+import com.adjectivemonk2.note.model.NoteDocument
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.DELETE
 import jakarta.ws.rs.GET
@@ -27,6 +28,7 @@ import jakarta.ws.rs.PUT
 import jakarta.ws.rs.Path
 import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
+import jakarta.ws.rs.QueryParam
 import jakarta.ws.rs.core.MediaType
 import kotlinx.serialization.Serializable
 import org.jboss.logging.Logger
@@ -35,28 +37,36 @@ import org.jboss.logging.Logger
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class NoteResource(
-  private val noteRepository: NoteRepository,
+  private val noteService: NoteService,
+  private val noteSearchRepository: NoteSearchRepository,
   private val logger: Logger,
 ) {
 
   @GET
   suspend fun list(): List<NoteResponse> {
     logger.info("Fetching all notes")
-    return noteRepository.findAll().map { it.toResponse() }
+    return noteService.findAll().map { it.toResponse() }
   }
 
   @GET
   @Path("{id}")
   suspend fun get(@PathParam("id") id: String): NoteResponse {
     logger.info("Fetching note with id: $id")
-    val note = noteRepository.findById(id) ?: throw NotFoundException("Note not found: $id")
+    val note = noteService.findById(id) ?: throw NotFoundException("Note not found: $id")
     return note.toResponse()
+  }
+
+  @GET
+  @Path("search")
+  suspend fun search(@QueryParam("q") q: String): List<NoteResponse> {
+    logger.info("Searching notes with q=$q")
+    return noteSearchRepository.search(q).map { it.toResponse() }
   }
 
   @POST
   suspend fun create(data: NoteData): NoteResponse {
     logger.info("Creating note with title: ${data.title}")
-    val created = noteRepository.create(data)
+    val created = noteService.create(data)
     return created.toResponse()
   }
 
@@ -64,7 +74,7 @@ class NoteResource(
   @Path("{id}")
   suspend fun update(@PathParam("id") id: String, data: NoteData): NoteResponse {
     logger.info("Updating note with id: $id")
-    val updated = noteRepository.update(id, data) ?: throw NotFoundException("Note not found: $id")
+    val updated = noteService.update(id, data) ?: throw NotFoundException("Note not found: $id")
     return updated.toResponse()
   }
 
@@ -72,12 +82,20 @@ class NoteResource(
   @Path("{id}")
   suspend fun delete(@PathParam("id") id: String) {
     logger.info("Deleting note with id: $id")
-    val deleted = noteRepository.delete(id)
-    if (!deleted) throw NotFoundException("Note not found: $id")
+    val deleted = noteService.delete(id)
+    if (!deleted) {
+      throw NotFoundException("Note not found: $id")
+    }
   }
 
   private fun Note.toResponse() = NoteResponse(
     id = id.toHexString(),
+    title = title,
+    content = content,
+  )
+
+  private fun NoteDocument.toResponse() = NoteResponse(
+    id = id,
     title = title,
     content = content,
   )

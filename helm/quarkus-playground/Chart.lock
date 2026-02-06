@@ -5,5 +5,8 @@ dependencies:
 - name: redis-cluster
   repository: https://charts.bitnami.com/bitnami
   version: 13.0.4
-digest: sha256:5ba9ad5c2d1ac443e759d95407ad73a731e3b754f77d536126981cb85f54b865
-generated: "2026-02-03T15:48:02.353404+05:30"
+- name: eck-stack
+  repository: https://helm.elastic.co
+  version: 0.18.0
+digest: sha256:51dc4a26eb4983207ab7d5c84de963ac4d2de4f984d5b650f160e56d0b165482
+generated: "2026-02-06T14:54:47.74372+05:30"
