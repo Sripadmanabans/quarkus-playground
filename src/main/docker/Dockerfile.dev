@@ -1,0 +1,35 @@
+####
+# This Dockerfile is used for local development with Skaffold.
+# It runs Quarkus Dev Mode, which supports hot reload when source files change.
+#
+# This image is NOT intended for production use. Use Dockerfile.jvm instead.
+#
+# Build the image with:
+#
+# docker build -f src/main/docker/Dockerfile.dev -t quarkus/quarkus-playground:dev .
+#
+# Then run the container using:
+#
+# docker run -i --rm -p 8080:8080 -p 5005:5005 quarkus/quarkus-playground:dev
+#
+###
+
+FROM registry.access.redhat.com/ubi9/openjdk-25:1.24
+
+USER root
+WORKDIR /app
+
+# Copy Gradle wrapper and build config first for dependency caching
+COPY gradlew .
+COPY gradle/ gradle/
+COPY build.gradle.kts settings.gradle.kts gradle.properties ./
+
+# Download dependencies as a separate layer (cached unless build files change)
+RUN ./gradlew dependencies
+
+# Copy source code
+COPY src/ src/
+
+EXPOSE 8080 5005
+
+ENTRYPOINT ["./gradlew", "quarkusDev", "-Dquarkus.http.host=0.0.0.0"]

@@ -1,0 +1,60 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: quarkus
+
+build:
+  artifacts:
+    - image: quarkus/quarkus-playground
+      docker:
+        dockerfile: src/main/docker/Dockerfile.jvm
+
+deploy:
+  helm:
+    releases:
+      - name: quarkus
+        chartPath: helm/quarkus-playground
+        valuesFiles:
+          - helm/quarkus-playground/values.yaml
+          - helm/quarkus-playground/mongo-values.yaml
+          - helm/quarkus-playground/redis-values.yaml
+          - helm/quarkus-playground/eck-stack-values.yaml
+        setValueTemplates:
+          quarkus.image.repository: "{{.IMAGE_REPO_quarkus_quarkus_playground}}"
+          quarkus.image.tag: "{{.IMAGE_TAG_quarkus_quarkus_playground}}"
+        namespace: playground
+        createNamespace: false
+
+portForward:
+  - resourceType: service
+    resourceName: quarkus-playground-service
+    namespace: playground
+    port: 8080
+    localPort: 8080
+
+profiles:
+  - name: dev
+    activation:
+      - command: dev
+    patches:
+      # Use the dev Dockerfile with Quarkus Dev Mode
+      - op: replace
+        path: /build/artifacts/0/docker/dockerfile
+        value: src/main/docker/Dockerfile.dev
+      # Enable manual file sync for hot reload
+      - op: add
+        path: /build/artifacts/0/sync
+        value:
+          manual:
+            - src: 'src/main/kotlin/**/*.kt'
+              dest: src/main/kotlin
+            - src: 'src/main/resources/**'
+              dest: src/main/resources
+            - src: 'build.gradle.kts'
+              dest: .
+            - src: 'gradle/libs.versions.toml'
+              dest: .
+      # Use lightweight local mongo values instead of production values
+      - op: replace
+        path: /deploy/helm/releases/0/valuesFiles/1
+        value: helm/quarkus-playground/mongo-values-local.yaml
