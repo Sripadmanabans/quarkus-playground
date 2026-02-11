@@ -68,9 +68,9 @@ Create a connection hosts to redis.
 {{- end }}
 
 {{/*
-Create a connection host to elasticsearch.
-The service name follows the ECK convention: <fullnameOverride>-es-http.
+Create a connection host to OpenSearch.
+The service name follows the OpenSearch Helm chart convention using fullnameOverride.
 */}}
-{{- define "quarkus-playground.elasticsearchHosts" -}}
-{{- printf "elasticsearch-es-http.%s.svc.cluster.local:9200" .Values.namespace.name }}
+{{- define "quarkus-playground.opensearchHosts" -}}
+{{- printf "opensearch-cluster-master-headless.%s.svc.cluster.local:9200" .Values.namespace.name }}
 {{- end }}

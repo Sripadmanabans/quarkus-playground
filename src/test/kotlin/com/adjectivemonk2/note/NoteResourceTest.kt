@@ -16,7 +16,7 @@
 
 package com.adjectivemonk2.note
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient
+import org.opensearch.client.opensearch.OpenSearchClient
 import com.adjectivemonk2.note.model.Note
 import com.adjectivemonk2.note.model.NoteData
 import com.mongodb.client.MongoClient
@@ -41,7 +41,7 @@ class NoteResourceTest {
   lateinit var mongoClient: MongoClient
 
   @Inject
-  lateinit var elasticsearchClient: ElasticsearchClient
+  lateinit var openSearchClient: OpenSearchClient
 
   @Inject
   @ConfigProperty(name = "quarkus.mongodb.database")
@@ -50,15 +50,15 @@ class NoteResourceTest {
   @AfterEach
   fun cleanup() {
     mongoClient.getDatabase(databaseName).getCollection("notes", Note::class.java).deleteMany(Filters.empty())
-    val indexExists = elasticsearchClient.indices().exists { it.index("notes") }.value()
+    val indexExists = openSearchClient.indices().exists { it.index("notes") }.value()
     if (indexExists) {
-      elasticsearchClient.deleteByQuery { it.index("notes").query { q -> q.matchAll { it } } }
-      elasticsearchClient.indices().refresh { it.index("notes") }
+      openSearchClient.deleteByQuery { it.index("notes").query { q -> q.matchAll { it } } }
+      openSearchClient.indices().refresh { it.index("notes") }
     }
   }
 
-  private fun refreshElasticsearch() {
-    elasticsearchClient.indices().refresh { it.index("notes") }
+  private fun refreshOpenSearch() {
+    openSearchClient.indices().refresh { it.index("notes") }
   }
 
   @Test
@@ -148,7 +148,7 @@ class NoteResourceTest {
   fun `search by q should find notes matching title`() = runTest {
     noteResource.create(NoteData(title = "Kotlin Guide", content = "Learn the basics"))
     noteResource.create(NoteData(title = "Java Guide", content = "Learn Java basics"))
-    refreshElasticsearch()
+    refreshOpenSearch()
 
     val results = noteResource.search(q = "Kotlin")
 
@@ -160,7 +160,7 @@ class NoteResourceTest {
   fun `search by q should find notes matching content`() = runTest {
     noteResource.create(NoteData(title = "The Guide", content = "Learn Kotlin basics"))
     noteResource.create(NoteData(title = "Java Guide", content = "Learn Java basics"))
-    refreshElasticsearch()
+    refreshOpenSearch()
 
     val results = noteResource.search(q = "Kotlin")
 

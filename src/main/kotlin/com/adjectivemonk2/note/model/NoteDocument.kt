@@ -16,7 +16,7 @@
 
 package com.adjectivemonk2.note.model
 
-/** An Elasticsearch document representation of a note. */
+/** An OpenSearch document representation of a note. */
 data class NoteDocument(
   val id: String,
   val title: String,

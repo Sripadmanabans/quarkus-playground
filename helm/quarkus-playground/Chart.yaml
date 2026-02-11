@@ -12,6 +12,6 @@ dependencies:
   - name: redis-cluster
     version: 13.0.4
     repository: https://charts.bitnami.com/bitnami
-  - name: eck-stack
-    version: 0.18.0
-    repository: https://helm.elastic.co
+  - name: opensearch
+    version: 3.4.0
+    repository: https://opensearch-project.github.io/helm-charts/

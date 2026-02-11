@@ -16,10 +16,10 @@
 
 package com.adjectivemonk2.note
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch.core.DeleteResponse
-import co.elastic.clients.elasticsearch.core.IndexResponse
+import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch._types.query_dsl.Query
+import org.opensearch.client.opensearch.core.DeleteResponse
+import org.opensearch.client.opensearch.core.IndexResponse
 import com.adjectivemonk2.note.model.Note
 import com.adjectivemonk2.note.model.NoteDocument
 import jakarta.enterprise.context.ApplicationScoped
@@ -29,14 +29,14 @@ import org.jboss.logging.Logger
 
 @ApplicationScoped
 class NoteSearchRepository(
-  private val client: ElasticsearchClient,
+  private val client: OpenSearchClient,
   private val logger: Logger,
 ) {
 
   suspend fun index(note: Note): IndexResponse? {
     return withContext(Dispatchers.IO) {
       val id = note.id.toHexString()
-      logger.info("Indexing note in Elasticsearch: $id")
+      logger.info("Indexing note in OpenSearch: $id")
       client.index { builder ->
         builder
           .index(INDEX_NAME)
@@ -48,7 +48,7 @@ class NoteSearchRepository(
 
   suspend fun delete(id: String): DeleteResponse? {
     return withContext(Dispatchers.IO) {
-      logger.info("Deleting note from Elasticsearch: $id")
+      logger.info("Deleting note from OpenSearch: $id")
       client.delete { it.index(INDEX_NAME).id(id) }
     }
   }

@@ -37,7 +37,8 @@ dependencies {
   implementation(libs.quarkus.config.yaml)
   implementation(libs.quarkus.mongodb.client)
   implementation(libs.quarkus.redis)
-  implementation(libs.quarkus.elasticsearch.java.client)
+  implementation(libs.quarkus.opensearch.java.client)
+  implementation(libs.quarkus.opensearch.transport.apache)
   implementation(libs.coroutines.core)
 
   implementation(platform(libs.mongo.bom))

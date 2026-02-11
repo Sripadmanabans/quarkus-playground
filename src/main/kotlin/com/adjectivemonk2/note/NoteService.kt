@@ -38,7 +38,7 @@ class NoteService(
     try {
       noteSearchRepository.index(note)
     } catch (e: Exception) {
-      logger.error("Failed to index note in Elasticsearch: ${note.id.toHexString()}", e)
+      logger.error("Failed to index note in OpenSearch: ${note.id.toHexString()}", e)
     }
     return note
   }
@@ -49,7 +49,7 @@ class NoteService(
       try {
         noteSearchRepository.index(note)
       } catch (e: Exception) {
-        logger.error("Failed to re-index note in Elasticsearch: $id", e)
+        logger.error("Failed to re-index note in OpenSearch: $id", e)
       }
     }
     return note
@@ -61,7 +61,7 @@ class NoteService(
       try {
         noteSearchRepository.delete(id)
       } catch (e: Exception) {
-        logger.error("Failed to delete note from Elasticsearch: $id", e)
+        logger.error("Failed to delete note from OpenSearch: $id", e)
       }
     }
     return deleted
