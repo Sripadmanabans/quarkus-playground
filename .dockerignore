@@ -1,9 +1,5 @@
-.git
-.idea
-.gradle
-build/
-helm/
-*.md
-LICENSE
-.gitignore
-.helmignore
+*
+!build/*-runner
+!build/*-runner.jar
+!build/lib/*
+!build/quarkus-app/*
