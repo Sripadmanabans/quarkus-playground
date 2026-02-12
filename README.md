@@ -6,11 +6,13 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 
 ## Features
 
-- **REST API** with Kotlin coroutines support
-- **MongoDB** integration using the reactive client
-- **Redis Cluster** integration using the reactive Quarkus Redis client
+- **REST API** with Java virtual threads (`@RunOnVirtualThread`) and Jackson serialization
+- **MongoDB** integration using the blocking client on virtual threads
+- **Redis Cluster** integration using the blocking Quarkus Redis client on virtual threads
 - **OpenSearch** integration for full-text search on notes (dual-write from MongoDB)
 - **Kubernetes deployment** with Helm charts, Percona MongoDB Operator, Bitnami Redis Cluster, and OpenSearch
+
+> **Why Java instead of Kotlin?** The project was originally written in Kotlin, but Quarkus dev mode hot reload was unreliable when used with Kotlin serialization. Switching to Java with Jackson and virtual threads resolved the hot reload issues while keeping the code simple and synchronous.
 
 ## API Endpoints
 
@@ -416,7 +418,8 @@ The MongoDB setup supports additional features:
 
 ## Related Guides
 
-- Kotlin ([guide](https://quarkus.io/guides/kotlin)): Write your services in Kotlin
+- Virtual Threads ([guide](https://quarkus.io/guides/virtual-threads)): Virtual thread support in Quarkus
+- REST Virtual Threads ([guide](https://quarkus.io/guides/rest-virtual-threads)): Use virtual threads in REST applications
 - MongoDB ([guide](https://quarkus.io/guides/mongodb)): Connect to MongoDB datastores
 - Redis ([guide](https://quarkus.io/guides/redis)): Connect to Redis datastores
 - OpenSearch ([guide](https://docs.quarkiverse.io/quarkus-opensearch/dev/index.html)): Connect to OpenSearch clusters

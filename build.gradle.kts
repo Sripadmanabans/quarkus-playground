@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
-  alias(libs.plugins.kotlin.jvm)
-  alias(libs.plugins.kotlin.allopen)
-  alias(libs.plugins.kotlin.serialization)
+  java
   alias(libs.plugins.quarkus)
 }
 
@@ -30,24 +26,22 @@ repositories {
 
 dependencies {
   implementation(enforcedPlatform(libs.quarkus.bom))
-  implementation(libs.quarkus.kotlin)
-  implementation(libs.quarkus.rest.kotlin.serialization)
+  implementation(libs.quarkus.rest.jackson)
   implementation(libs.quarkus.arc)
   implementation(libs.quarkus.rest)
   implementation(libs.quarkus.config.yaml)
   implementation(libs.quarkus.mongodb.client)
   implementation(libs.quarkus.redis)
+  implementation(libs.quarkus.virtual.threads)
   implementation(libs.quarkus.opensearch.java.client)
   implementation(libs.quarkus.opensearch.transport.apache)
-  implementation(libs.coroutines.core)
 
   implementation(platform(libs.mongo.bom))
   implementation(libs.mongo.driver)
 
   testImplementation(libs.quarkus.junit5)
-  testImplementation(libs.coroutines.test)
   testImplementation(libs.rest.assured)
-  testImplementation(libs.truthish)
+  testImplementation(libs.truth)
   testImplementation(libs.awaitility)
 }
 
@@ -61,18 +55,4 @@ java {
 
 tasks.withType<Test> {
   systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-}
-
-allOpen {
-  annotation("jakarta.ws.rs.Path")
-  annotation("jakarta.enterprise.context.ApplicationScoped")
-  annotation("jakarta.persistence.Entity")
-  annotation("io.quarkus.test.junit.QuarkusTest")
-}
-
-kotlin {
-  compilerOptions {
-    jvmTarget = JvmTarget.JVM_25
-    javaParameters = true
-  }
 }

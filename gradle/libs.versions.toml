@@ -1,38 +1,31 @@
 [versions]
 awaitility = "4.3.0"
-coroutines = "1.10.2"
-kotlin = "2.3.0"
 mongo = "5.6.3"
 opensearch = "3.2.2"
 quarkus = "3.31.2"
-truthish = "1.0.4"
+truth = "1.4.5"
 
 [libraries]
-awaitility = { module = "org.awaitility:awaitility-kotlin", version.ref = "awaitility" }
-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 
 mongo-bom = { module = "org.mongodb:mongodb-driver-bom", version.ref = "mongo" }
-mongo-driver = { module = "org.mongodb:mongodb-driver-kotlin-coroutine" }
+mongo-driver = { module = "org.mongodb:mongodb-driver-sync" }
 
 quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
-quarkus-kotlin = { module = "io.quarkus:quarkus-kotlin" }
-quarkus-rest-kotlin-serialization = { module = "io.quarkus:quarkus-rest-kotlin-serialization" }
+quarkus-rest-jackson = { module = "io.quarkus:quarkus-rest-jackson" }
 quarkus-arc = { module = "io.quarkus:quarkus-arc" }
 quarkus-rest = { module = "io.quarkus:quarkus-rest" }
 quarkus-config-yaml = { module = "io.quarkus:quarkus-config-yaml" }
 quarkus-mongodb-client = { module = "io.quarkus:quarkus-mongodb-client" }
 quarkus-junit5 = { module = "io.quarkus:quarkus-junit5" }
 quarkus-redis = { module = "io.quarkus:quarkus-redis-client" }
+quarkus-virtual-threads = { module = "io.quarkus:quarkus-virtual-threads" }
 quarkus-opensearch-java-client = { module = "io.quarkiverse.opensearch:quarkus-opensearch-java-client", version.ref = "opensearch" }
 quarkus-opensearch-transport-apache = { module = "io.quarkiverse.opensearch:quarkus-opensearch-transport-apache", version.ref = "opensearch" }
 
 rest-assured = { module = "io.rest-assured:rest-assured" }
 
-truthish = { module = "com.varabyte.truthish:truthish", version.ref = "truthish" }
+truth = { module = "com.google.truth:truth", version.ref = "truth" }
 
 [plugins]
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kotlin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 quarkus = { id = "io.quarkus", version.ref = "quarkus" }
