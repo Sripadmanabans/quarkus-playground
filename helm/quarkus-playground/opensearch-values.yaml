@@ -113,18 +113,19 @@ opensearch:
 
   resources:
     requests:
-      cpu: "1000m"
-      memory: "2Gi"  # MODIFIED (was: "100Mi") -- match current ES resource allocation
+      cpu: "500m"
+      memory: "1Gi"
     limits:
-      memory: "2Gi"  # MODIFIED (added) -- match current ES resource allocation
+      cpu: "1000m"
+      memory: "2Gi"
 
-  initResources: { }
-  #  limits:
-  #     cpu: "25m"
-  #     memory: "128Mi"
-  #  requests:
-  #     cpu: "25m"
-  #     memory: "128Mi"
+  initResources:
+    limits:
+      cpu: "25m"
+      memory: "128Mi"
+    requests:
+      cpu: "25m"
+      memory: "128Mi"
 
   sidecarResources: { }
   #   limits:

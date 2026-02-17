@@ -1,11 +1,7 @@
 ####
 # This Dockerfile is used in order to build a container that runs the Quarkus application in JVM mode
 #
-# Before building the container image run:
-#
-# ./gradlew build
-#
-# Then, build the image with:
+# Build the image with:
 #
 # docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quarkus-playground .
 #
@@ -78,15 +74,37 @@
 #   accessed directly. (example: "foo.example.com,bar.example.com")
 #
 ###
-FROM registry.access.redhat.com/ubi9/openjdk-25:1.24
+
+## Stage 1: Build the application
+FROM registry.access.redhat.com/ubi9/openjdk-25:1.24 AS build
+
+USER root
+WORKDIR /app
+
+# Copy Gradle wrapper and build config first for dependency caching
+COPY gradlew .
+COPY gradle/ gradle/
+COPY build.gradle.kts settings.gradle.kts gradle.properties ./
+
+# Download dependencies as a separate layer (cached unless build files change)
+RUN ./gradlew dependencies -q --no-daemon
+
+# Copy source code
+COPY src/ src/
+
+# Build the application
+RUN ./gradlew assemble --no-daemon
+
+## Stage 2: Create the runtime image
+FROM registry.access.redhat.com/ubi9/openjdk-25-runtime:1.24
 
 ENV LANGUAGE='en_US:en'
 
 # We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --chown=185 build/quarkus-app/lib/ /deployments/lib/
-COPY --chown=185 build/quarkus-app/*.jar /deployments/
-COPY --chown=185 build/quarkus-app/app/ /deployments/app/
-COPY --chown=185 build/quarkus-app/quarkus/ /deployments/quarkus/
+COPY --chown=185 --from=build /app/build/quarkus-app/lib/ /deployments/lib/
+COPY --chown=185 --from=build /app/build/quarkus-app/*.jar /deployments/
+COPY --chown=185 --from=build /app/build/quarkus-app/app/ /deployments/app/
+COPY --chown=185 --from=build /app/build/quarkus-app/quarkus/ /deployments/quarkus/
 
 EXPOSE 8080
 USER 185

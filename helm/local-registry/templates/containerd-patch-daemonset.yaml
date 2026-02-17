@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: containerd-insecure-registry-patch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: containerd-insecure-registry-patch
+spec:
+  selector:
+    matchLabels:
+      app: containerd-insecure-registry-patch
+  template:
+    metadata:
+      labels:
+        app: containerd-insecure-registry-patch
+    spec:
+      hostPID: true
+      initContainers:
+        - name: patch-containerd
+          image: busybox:1.36
+          securityContext:
+            privileged: true
+          command:
+            - sh
+            - -c
+            - |
+              REGISTRY_HOST="{{ .Values.containerdPatch.registryHost }}"
+              REGISTRY_HOSTNAME="${REGISTRY_HOST%%:*}"
+              HOSTS_DIR="/host-etc/containerd/certs.d/${REGISTRY_HOST}"
+
+              # Resolve the ClusterIP of the registry service via cluster DNS.
+              # The init container runs in the pod network, so DNS works here.
+              CLUSTER_IP=$(nslookup "${REGISTRY_HOSTNAME}" 2>/dev/null | grep -A1 "Name:" | grep "Address" | awk '{print $2}')
+              if [ -z "${CLUSTER_IP}" ]; then
+                echo "ERROR: could not resolve ${REGISTRY_HOSTNAME}"
+                exit 1
+              fi
+              echo "Resolved ${REGISTRY_HOSTNAME} -> ${CLUSTER_IP}"
+
+              mkdir -p "${HOSTS_DIR}"
+              cat > "${HOSTS_DIR}/hosts.toml" <<TOML
+              server = "http://${REGISTRY_HOST}"
+
+              [host."http://${REGISTRY_HOST}"]
+                capabilities = ["pull", "resolve", "push"]
+                skip_verify  = true
+              TOML
+
+              # Write the ClusterIP into the node's /etc/hosts so containerd
+              # (on the host network) can resolve the registry FQDN without cluster DNS.
+              # ClusterIPs are routable from the host via kube-proxy iptables rules.
+              sed -i "/${REGISTRY_HOSTNAME}/d" /host-etc/hosts
+              echo "${CLUSTER_IP} ${REGISTRY_HOSTNAME}" >> /host-etc/hosts
+
+              # Restart containerd so it picks up the new certs.d entry.
+              nsenter --target 1 --mount --pid -- systemctl restart containerd
+
+              echo "containerd patched for insecure registry: ${REGISTRY_HOST}"
+          volumeMounts:
+            - name: host-etc
+              mountPath: /host-etc/containerd
+            - name: host-etc-hosts
+              mountPath: /host-etc/hosts
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 10m
+              memory: 16Mi
+      tolerations:
+        - operator: Exists
+      volumes:
+        - name: host-etc
+          hostPath:
+            path: /etc/containerd
+            type: DirectoryOrCreate
+        - name: host-etc-hosts
+          hostPath:
+            path: /etc/hosts
+            type: File

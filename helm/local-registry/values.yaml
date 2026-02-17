@@ -1,0 +1,14 @@
+image:
+  repository: registry
+  tag: "3"
+service:
+  port: 5000
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+containerdPatch:
+  registryHost: local-registry.local-registry.svc.cluster.local:5000

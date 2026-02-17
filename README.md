@@ -11,6 +11,7 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 - **Redis Cluster** integration using the blocking Quarkus Redis client on virtual threads
 - **OpenSearch** integration for full-text search on notes (dual-write from MongoDB)
 - **Kubernetes deployment** with Helm charts, Percona MongoDB Operator, Bitnami Redis Cluster, and OpenSearch
+- **Skaffold dev workflow** with local and remote-dev profiles, hot reload via file sync, and in-cluster image builds
 
 > **Why Java instead of Kotlin?** The project was originally written in Kotlin, but Quarkus dev mode hot reload was unreliable when used with Kotlin serialization. Switching to Java with Jackson and virtual threads resolved the hot reload issues while keeping the code simple and synchronous.
 
@@ -33,28 +34,17 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 | PUT | `/notes/{id}` | Update an existing note (also re-indexed in OpenSearch) |
 | DELETE | `/notes/{id}` | Delete a note (also removed from OpenSearch) |
 
-**Search query parameters** (at least one required):
+**Search query parameter**
 
 | Parameter | Description |
 |-----------|-------------|
 | `q` | Full-text search across both title and content |
-| `title` | Match on title field only |
-| `content` | Match on content field only |
 
-Parameters can be combined (AND logic). Examples:
+Example:
 
 ```shell script
 # Search across both title and content
 curl "http://localhost:8080/notes/search?q=kotlin"
-
-# Search by title only
-curl "http://localhost:8080/notes/search?title=guide"
-
-# Search by content only
-curl "http://localhost:8080/notes/search?content=tutorial"
-
-# Combine title and content filters
-curl "http://localhost:8080/notes/search?title=kotlin&content=advanced"
 ```
 
 **Request/Response format:**
@@ -114,6 +104,41 @@ You can run your application in dev mode that enables live coding using:
 
 > **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
 
+### Skaffold Dev Workflow
+
+[Skaffold](https://skaffold.dev/) automates the build-deploy-debug loop for Kubernetes. The project provides three profiles:
+
+| Profile | Command | Description |
+|---------|---------|-------------|
+| (default) | `skaffold run` | Builds with `Dockerfile.jvm` and deploys via Helm |
+| `dev` | `skaffold dev` | Uses `Dockerfile.dev` (Quarkus Dev Mode) with file sync for hot reload and lightweight local MongoDB |
+| `remote-dev` | `REMOTE_DEV=true skaffold dev` | Builds in-cluster via Docker Buildx (Kubernetes driver) and pushes to the in-cluster local registry |
+
+#### Local Dev
+
+```shell script
+skaffold dev
+```
+
+This uses the `dev` profile which:
+- Builds with `Dockerfile.dev` running Quarkus Dev Mode
+- Syncs Java source files and Gradle config into the running container for hot reload
+- Uses `mongo-values-local.yaml` for a lightweight single-node MongoDB
+- Port-forwards the application to `localhost:8080`
+
+#### Remote Dev (In-Cluster Builds)
+
+For environments where Docker is not available locally (e.g., remote Kubernetes clusters):
+
+```shell script
+REMOTE_DEV=true skaffold dev
+```
+
+This uses the `remote-dev` profile which:
+- Builds images in-cluster using Docker Buildx with the Kubernetes driver
+- Pushes to the in-cluster local registry (`local-registry.local-registry.svc.cluster.local:5000`)
+- Uses `buildx-build.sh` as the custom build command
+
 ## Packaging and running the application
 
 The application can be packaged using:
@@ -162,6 +187,10 @@ The project includes a [Helm](https://helm.sh/) chart in the `helm/quarkus-playg
 ```mermaid
 graph TB
   subgraph cluster["Kubernetes Cluster"]
+    subgraph localreg["local-registry namespace"]
+      registry["Local Registry\n(Docker Registry)"]
+      daemonset["containerd\nDaemonSet Patch"]
+    end
     subgraph playground["playground namespace"]
       percona["Percona Operator"]
       app["Quarkus App"]
@@ -176,38 +205,60 @@ graph TB
     end
   end
 
+  skaffold["Skaffold"] -->|build & push| registry
+  registry -->|pull| app
+  daemonset -.->|patches nodes| cluster
+
   style cluster fill:none,stroke:#999
   style playground fill:none,stroke:#999,color:#999
+  style localreg fill:none,stroke:#999,color:#999
   style app fill:#fff3e0,stroke:#fb8c00,color:#000
   style mongo fill:#e3f2fd,stroke:#1e88e5,color:#000
   style redis fill:#fce4ec,stroke:#e53935,color:#000
   style os fill:#f3e5f5,stroke:#8e24aa,color:#000
   style percona fill:#e8f0fe,stroke:#4285f4,color:#000
+  style registry fill:#e8f5e9,stroke:#43a047,color:#000
+  style daemonset fill:#e8f5e9,stroke:#43a047,color:#000
+  style skaffold fill:#fffde7,stroke:#f9a825,color:#000
 ```
 
 All components are deployed in the `playground` namespace so that secrets created by the operators are accessible to the application. The Percona Operator manages the MongoDB cluster. OpenSearch and the Bitnami Redis Cluster are deployed as Helm subcharts. The Quarkus application connects to MongoDB using credentials automatically generated by Percona, to Redis Cluster via the headless service, and to OpenSearch via its ClusterIP service.
+
+For in-cluster builds (remote-dev profile), Skaffold pushes images to the local registry in the `local-registry` namespace. A DaemonSet patches containerd on every node to allow insecure pulls from the registry.
 
 ### Directory Structure
 
 ```
 helm/
+├── local-registry/                          # In-cluster Docker registry (for remote-dev)
+│   ├── Chart.yaml                           # Helm chart metadata
+│   ├── values.yaml                          # Registry configuration
+│   └── templates/
+│       ├── deployment.yaml                  # Registry deployment
+│       ├── service.yaml                     # ClusterIP service
+│       └── containerd-patch-daemonset.yaml  # DaemonSet to patch node containerd config
 └── quarkus-playground/
-    ├── Chart.yaml                       # Helm chart metadata
-    ├── Chart.lock                       # Dependency lock file
-    ├── values.yaml                      # Default configuration values
-    ├── mongo-values.yaml                # Percona MongoDB values (production)
-    ├── mongo-local-values.yaml          # Percona MongoDB values (local/dev)
-    ├── redis-values.yaml                # Bitnami Redis Cluster values
-    ├── opensearch-values.yaml           # OpenSearch values
-    ├── charts/                          # Packaged dependency charts
-    │   ├── psmdb-db-1.21.2.tgz         # Percona MongoDB chart dependency
-    │   └── redis-cluster-13.0.4.tgz    # Bitnami Redis Cluster chart dependency
+    ├── Chart.yaml                           # Helm chart metadata
+    ├── Chart.lock                           # Dependency lock file
+    ├── values.yaml                          # Default configuration values
+    ├── mongo-values.yaml                    # Percona MongoDB values (production)
+    ├── mongo-local-values.yaml              # Percona MongoDB values (local/dev)
+    ├── redis-values.yaml                    # Bitnami Redis Cluster values
+    ├── opensearch-values.yaml               # OpenSearch values
+    ├── charts/                              # Packaged dependency charts
+    │   ├── psmdb-db-1.21.2.tgz             # Percona MongoDB chart dependency
+    │   └── redis-cluster-13.0.4.tgz        # Bitnami Redis Cluster chart dependency
     └── templates/
-        ├── _helpers.tpl                 # Template helpers
-        ├── namespace.yaml               # Namespace template
-        ├── deployment.yaml              # Deployment template
-        └── service.yaml                 # Service template
-.helmignore                              # Files to exclude from Helm packaging
+        ├── _helpers.tpl                     # Template helpers
+        ├── namespace.yaml                   # Namespace template
+        ├── deployment.yaml                  # Deployment template
+        └── service.yaml                     # Service template
+skaffold.yaml                                # Skaffold build/deploy configuration
+buildx-build.sh                              # Custom build script for Docker Buildx (Kubernetes driver)
+src/main/docker/
+├── Dockerfile.jvm                           # Multi-stage production Dockerfile
+└── Dockerfile.dev                           # Quarkus Dev Mode Dockerfile
+.helmignore                                  # Files to exclude from Helm packaging
 ```
 
 ### Prerequisites
@@ -240,28 +291,39 @@ Key values in `values.yaml`:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `namespace.create` | Create namespace | `false` |
-| `namespace.name` | Namespace name | `playground` |
 | `quarkus.replicaCount` | Number of app replicas | `1` |
 | `quarkus.image.repository` | Image repository | `quarkus/quarkus-playground` |
 | `quarkus.image.tag` | Image tag | `1.0` |
 | `quarkus.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `quarkus.service.type` | Service type | `NodePort` |
 | `quarkus.service.port` | Service port | `8080` |
-| `quarkus.resources.requests.memory` | Memory request | `128Mi` |
-| `quarkus.resources.requests.cpu` | CPU request | `100m` |
-| `quarkus.resources.limits.memory` | Memory limit | `256Mi` |
-| `quarkus.resources.limits.cpu` | CPU limit | `500m` |
+| `quarkus.resources.requests.memory` | Memory request | `1Gi` |
+| `quarkus.resources.requests.cpu` | CPU request | `1000m` |
+| `quarkus.resources.limits.memory` | Memory limit | `2Gi` |
+| `quarkus.resources.limits.cpu` | CPU limit | `1000m` |
 
-> **Note:** The application automatically reads MongoDB credentials from the Percona-generated secret (`<clusterName>-mongo-secrets`).
+### Docker Images
 
-### Building the Docker Image
+Two Dockerfiles are provided:
 
-Before deploying, build the JVM Docker image:
+| Dockerfile | Purpose | Base Image |
+|-----------|---------|-----------|
+| `Dockerfile.jvm` | Production — multi-stage build (build + runtime) | `ubi9/openjdk-25` / `ubi9/openjdk-25-runtime` |
+| `Dockerfile.dev` | Development — runs Quarkus Dev Mode with hot reload | `ubi9/openjdk-25` |
+
+**Build the production image (multi-stage):**
 
 ```shell script
-./gradlew build
 docker build -f src/main/docker/Dockerfile.jvm -t quarkus/quarkus-playground:1.0 .
+```
+
+`Dockerfile.jvm` runs `./gradlew assemble` inside the build stage, so no pre-build step is needed.
+
+**Build the dev image:**
+
+```shell script
+docker build -f src/main/docker/Dockerfile.dev -t quarkus/quarkus-playground:dev .
+docker run -i --rm -p 8080:8080 -p 5005:5005 quarkus/quarkus-playground:dev
 ```
 
 ### Deploying to Kubernetes
@@ -408,6 +470,41 @@ Redis is deployed using the Bitnami Redis Cluster Helm chart as a subchart depen
 
 The Quarkus application connects to Redis via the headless service at `<release>-redis-cluster-headless.<namespace>.svc.cluster.local:6379`.
 
+### Local Registry (In-Cluster)
+
+The `helm/local-registry/` chart deploys a lightweight Docker registry inside the cluster, used by the `remote-dev` Skaffold profile for in-cluster image builds.
+
+#### Components
+
+| Resource | Description |
+|----------|-------------|
+| **Deployment** | Runs the `registry:3` image with an `emptyDir` volume (non-persistent) |
+| **Service** | ClusterIP service on port 5000 (`local-registry.local-registry.svc.cluster.local:5000`) |
+| **DaemonSet** | Patches containerd on every node to trust the registry as an insecure registry and adds a `/etc/hosts` entry so the host network can resolve the registry FQDN |
+
+#### Install
+
+```shell script
+kubectl create namespace local-registry
+helm install local-registry helm/local-registry -n local-registry
+```
+
+#### Upgrade
+
+```shell script
+helm upgrade local-registry helm/local-registry -n local-registry
+kubectl rollout restart daemonset/containerd-insecure-registry-patch -n local-registry
+```
+
+> **Note:** Restarting the DaemonSet after an upgrade ensures that all nodes pick up the latest containerd configuration changes.
+
+#### Uninstall
+
+```shell script
+helm uninstall local-registry -n local-registry
+kubectl delete namespace local-registry
+```
+
 ## Future Enhancements
 
 The MongoDB setup supports additional features:
@@ -418,6 +515,8 @@ The MongoDB setup supports additional features:
 
 ## Related Guides
 
+- Skaffold ([docs](https://skaffold.dev/docs/)): Build and deploy to Kubernetes with a single command
+- Docker Buildx ([docs](https://docs.docker.com/build/builders/drivers/kubernetes/)): Buildx Kubernetes driver for in-cluster builds
 - Virtual Threads ([guide](https://quarkus.io/guides/virtual-threads)): Virtual thread support in Quarkus
 - REST Virtual Threads ([guide](https://quarkus.io/guides/rest-virtual-threads)): Use virtual threads in REST applications
 - MongoDB ([guide](https://quarkus.io/guides/mongodb)): Connect to MongoDB datastores

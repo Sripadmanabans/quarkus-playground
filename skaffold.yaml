@@ -1,0 +1,89 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: quarkus
+
+build:
+  artifacts:
+    - image: quarkus/quarkus-playground
+      docker:
+        dockerfile: src/main/docker/Dockerfile.jvm
+
+deploy:
+  helm:
+    releases:
+      - name: quarkus
+        chartPath: helm/quarkus-playground
+        valuesFiles:
+          - helm/quarkus-playground/values.yaml
+          - helm/quarkus-playground/mongo-values.yaml
+          - helm/quarkus-playground/redis-values.yaml
+          - helm/quarkus-playground/opensearch-values.yaml
+        setValueTemplates:
+          quarkus.image.repository: "{{.IMAGE_REPO_quarkus_quarkus_playground}}"
+          quarkus.image.tag: "{{.IMAGE_TAG_quarkus_quarkus_playground}}"
+        skipBuildDependencies: true
+
+portForward:
+  - resourceType: service
+    resourceName: quarkus-service
+    port: 8080
+    localPort: 8080
+
+profiles:
+  - name: dev
+    activation:
+      - command: dev
+    patches:
+      # Use the dev Dockerfile with Quarkus Dev Mode
+      - op: replace
+        path: /build/artifacts/0/docker/dockerfile
+        value: src/main/docker/Dockerfile.dev
+      # Enable manual file sync for hot reload
+      - op: add
+        path: /build/artifacts/0/sync
+        value:
+          manual:
+            - src: 'src/main/java/**/*.java'
+              dest: src/main/java
+            - src: 'src/main/resources/**'
+              dest: src/main/resources
+            - src: 'build.gradle.kts'
+              dest: build.gradle.kts
+            - src: 'gradle/libs.versions.toml'
+              dest: gradle/libs.versions.toml
+      # Use lightweight local mongo values instead of production values
+      - op: replace
+        path: /deploy/helm/releases/0/valuesFiles/1
+        value: helm/quarkus-playground/mongo-values-local.yaml
+
+  - name: remote-dev
+    activation:
+      - command: dev
+        env: REMOTE_DEV=true
+    patches:
+      # Point the artifact to the in-cluster registry (FQDN so buildx pods in 'buildkit' namespace can resolve it)
+      - op: replace
+        path: /build/artifacts/0/image
+        value: local-registry.local-registry.svc.cluster.local:5000/quarkus-playground
+      # Allow Skaffold to verify images over HTTP from the in-cluster registry
+      - op: add
+        path: /build/insecureRegistries
+        value:
+          - local-registry.local-registry.svc.cluster.local:5000
+      # Replace Docker builder with Buildx custom builder (uses the 'kube' Kubernetes driver)
+      - op: remove
+        path: /build/artifacts/0/docker
+      - op: add
+        path: /build/artifacts/0/custom
+        value:
+          buildCommand: ./buildx-build.sh
+          dependencies:
+            dockerfile:
+              path: src/main/docker/Dockerfile.dev
+      # Update image template variables to match the new artifact name
+      - op: replace
+        path: /deploy/helm/releases/0/setValueTemplates
+        value:
+          quarkus.image.repository: "{{.IMAGE_REPO_local_registry_local_registry_svc_cluster_local_5000_quarkus_playground}}"
+          quarkus.image.tag: "{{.IMAGE_TAG_local_registry_local_registry_svc_cluster_local_5000_quarkus_playground}}"
