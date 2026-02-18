@@ -46,7 +46,7 @@ redis-cluster:
   nameOverride: ""
   ## @param fullnameOverride String to fully override common.names.fullname template
   ##
-  fullnameOverride: ""
+  fullnameOverride: "quarkus-redis"
   ## @param namespaceOverride String to fully override common.names.namespace template
   ##
   namespaceOverride: ""

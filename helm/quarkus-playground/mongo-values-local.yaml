@@ -18,7 +18,7 @@ mongo:
   #  - percona.com/delete-pitr-chunks
 
   nameOverride: ""
-  fullnameOverride: ""
+  fullnameOverride: "quarkus-mongo"
   authDatabase: admin
 
   crVersion: 1.21.2

@@ -1,8 +1,7 @@
 nameOverride: ""
-fullnameOverride: ""
+fullnameOverride: "quarkus"
 
 namespace:
-  create: false
   name: playground
 
 quarkus:

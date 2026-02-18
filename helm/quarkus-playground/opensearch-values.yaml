@@ -6,7 +6,7 @@
 # All other values are left at their upstream defaults for reference.
 
 opensearch:
-  clusterName: "opensearch-cluster"
+  clusterName: "quarkus-os"
   nodeGroup: "master"
 
   # If discovery.type in the opensearch configuration is set to "single-node",
@@ -16,7 +16,7 @@ opensearch:
 
   # The service that non master groups will try to connect to when joining the cluster
   # This should be set to clusterName + "-" + nodeGroup for your master group
-  masterService: "opensearch-cluster-master"
+  masterService: "quarkus-os-master"
 
   # OpenSearch roles that will be applied to this nodeGroup
   # These will be set as environment variable "node.roles". E.g. node.roles=master,ingest,data,remote_cluster_client
@@ -56,7 +56,7 @@ opensearch:
 
     # MODIFIED -- added plugins.security.disabled to mirror current TLS-disabled ES config
     opensearch.yml: |
-      cluster.name: opensearch-cluster
+      cluster.name: quarkus-os
 
       # Bind to all interfaces because we don't know what IP address Docker will assign to us.
       network.host: 0.0.0.0
@@ -386,7 +386,7 @@ opensearch:
     #      - chart-example.local
 
   nameOverride: ""
-  fullnameOverride: "opensearch"  # MODIFIED (was: "") -- gives clean service name opensearch.<ns>.svc.cluster.local:9200
+  fullnameOverride: "quarkus-os"  # MODIFIED (was: "") -- gives clean service name opensearch.<ns>.svc.cluster.local:9200
 
   masterTerminationFix: false
 

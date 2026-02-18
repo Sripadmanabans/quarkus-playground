@@ -27,12 +27,12 @@ spec:
             - name: QUARKUS_MONGODB_CREDENTIALS_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-mongo-secrets
+                  name: quarkus-mongo-secrets
                   key: MONGODB_DATABASE_ADMIN_USER
             - name: QUARKUS_MONGODB_CREDENTIALS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-mongo-secrets
+                  name: quarkus-mongo-secrets
                   key: MONGODB_DATABASE_ADMIN_PASSWORD
             - name: QUARKUS_MONGODB_CREDENTIALS_AUTH_SOURCE
               value: "{{ .Values.mongo.authDatabase }}"

@@ -54,9 +54,9 @@ Create a connection hosts to monogo.
 */}}
 {{- define "quarkus-playground.mongoHosts" -}}
 {{- if .Values.mongo.sharding.enabled }}
-{{- printf "%s-mongo-mongos.%s.svc.cluster.local:27017" .Release.Name .Values.namespace.name }}
+{{- printf "quarkus-mongo-mongos.%s.svc.cluster.local:27017" .Values.namespace.name }}
 {{- else }}
-{{- printf "%s-mongo-rs0.%s.svc.cluster.local:27017" .Release.Name .Values.namespace.name }}
+{{- printf "quarkus-mongo-rs0.%s.svc.cluster.local:27017" .Values.namespace.name }}
 {{- end }}
 {{- end }}
 
@@ -64,7 +64,7 @@ Create a connection hosts to monogo.
 Create a connection hosts to redis.
 */}}
 {{- define "quarkus-playground.redisHosts" -}}
-{{- printf "redis://%s-redis-cluster-headless.%s.svc.cluster.local:6379" .Release.Name .Values.namespace.name }}
+{{- printf "redis://quarkus-redis-headless.%s.svc.cluster.local:6379" .Values.namespace.name }}
 {{- end }}
 
 {{/*
@@ -72,5 +72,5 @@ Create a connection host to OpenSearch.
 The service name follows the OpenSearch Helm chart convention using fullnameOverride.
 */}}
 {{- define "quarkus-playground.opensearchHosts" -}}
-{{- printf "opensearch-cluster-master-headless.%s.svc.cluster.local:9200" .Values.namespace.name }}
+{{- printf "quarkus-os-master-headless.%s.svc.cluster.local:9200" .Values.namespace.name }}
 {{- end }}
