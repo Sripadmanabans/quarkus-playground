@@ -10,8 +10,8 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 - **MongoDB** integration using the blocking client on virtual threads
 - **Redis Cluster** integration using the blocking Quarkus Redis client on virtual threads
 - **OpenSearch** integration for full-text search on notes (dual-write from MongoDB)
-- **Kubernetes deployment** with Helm charts, Percona MongoDB Operator, Bitnami Redis Cluster, and OpenSearch
-- **Skaffold dev workflow** with local and remote-dev profiles, hot reload via file sync, and in-cluster image builds
+- **Kubernetes deployment** with separate Helm charts for infrastructure (MongoDB, Redis, OpenSearch) and the application
+- **Skaffold dev workflow** with profile-based infra/app separation, hot reload via file sync, and in-cluster image builds
 
 > **Why Java instead of Kotlin?** The project was originally written in Kotlin, but Quarkus dev mode hot reload was unreliable when used with Kotlin serialization. Switching to Java with Jackson and virtual threads resolved the hot reload issues while keeping the code simple and synchronous.
 
@@ -106,24 +106,50 @@ You can run your application in dev mode that enables live coding using:
 
 ### Skaffold Dev Workflow
 
-[Skaffold](https://skaffold.dev/) automates the build-deploy-debug loop for Kubernetes. The project provides three profiles:
+[Skaffold](https://skaffold.dev/) automates the build-deploy-debug loop for Kubernetes. The configuration uses two Skaffold modules (`infra` and `quarkus`) so their lifecycles can be managed independently.
 
-| Profile | Command | Description |
-|---------|---------|-------------|
-| (default) | `skaffold run` | Builds with `Dockerfile.jvm` and deploys via Helm |
-| `dev` | `skaffold dev` | Uses `Dockerfile.dev` (Quarkus Dev Mode) with file sync for hot reload and lightweight local MongoDB |
-| `remote-dev` | `REMOTE_DEV=true skaffold dev` | Builds in-cluster via Docker Buildx (Kubernetes driver) and pushes to the in-cluster local registry |
+#### Modules and Profiles
+
+| Module | Profile | Command | Description |
+|--------|---------|---------|-------------|
+| `infra` | (default) | `skaffold run -m infra` | Infrastructure with production-like values |
+| `infra` | `local` | `skaffold run -m infra -p local` | Infrastructure with lightweight single-node MongoDB |
+| `quarkus` | (default) | `skaffold run -m quarkus` | App with production Dockerfile |
+| `quarkus` | `dev` | `skaffold dev -m quarkus` | App with dev Dockerfile and hot reload (auto-activates on `skaffold dev`) |
+| `quarkus` | `remote-dev` | `REMOTE_DEV=true skaffold dev -m quarkus` | App with in-cluster builds via Buildx (auto-activates on `skaffold dev` with `REMOTE_DEV=true`) |
+| both | | `skaffold run` | Full stack — infra + app |
+
+The modules are independent — use `-m` to target a specific module. Running without `-m` deploys both.
+
+#### Daily Workflow
+
+```shell script
+# Deploy infrastructure once (lightweight local setup)
+skaffold run -m infra -p local
+
+# Iterate on the app — restart as many times as you want, infra stays up
+skaffold dev -m quarkus
+
+# Tear down infrastructure when done
+skaffold delete -m infra
+```
+
+#### Full Stack (One Command)
+
+For a quick start or CI, deploy everything at once:
+
+```shell script
+skaffold run
+```
+
+This deploys infra (with production-like values) and the app in a single command.
 
 #### Local Dev
 
-```shell script
-skaffold dev
-```
-
-This uses the `dev` profile which:
+`skaffold dev -m quarkus` auto-activates the `dev` profile which:
 - Builds with `Dockerfile.dev` running Quarkus Dev Mode
 - Syncs Java source files and Gradle config into the running container for hot reload
-- Uses `mongo-values-local.yaml` for a lightweight single-node MongoDB
+- Overrides the MongoDB connection to use the non-sharded endpoint (matching `infra -p local`)
 - Port-forwards the application to `localhost:8080`
 
 #### Remote Dev (In-Cluster Builds)
@@ -131,10 +157,10 @@ This uses the `dev` profile which:
 For environments where Docker is not available locally (e.g., remote Kubernetes clusters):
 
 ```shell script
-REMOTE_DEV=true skaffold dev
+REMOTE_DEV=true skaffold dev -m quarkus
 ```
 
-This uses the `remote-dev` profile which:
+This auto-activates the `remote-dev` profile which:
 - Builds images in-cluster using Docker Buildx with the Kubernetes driver
 - Pushes to the in-cluster local registry (`local-registry.local-registry.svc.cluster.local:5000`)
 - Uses `buildx-build.sh` as the custom build command
@@ -180,7 +206,7 @@ If you want to learn more about building native executables, please consult <htt
 
 ## Kubernetes Deployment
 
-The project includes a [Helm](https://helm.sh/) chart in the `helm/quarkus-playground/` directory for deploying the application to a Kubernetes cluster. All components — including the [Percona Operator for MongoDB](https://docs.percona.com/percona-operator-for-mongodb/), [OpenSearch](https://opensearch.org/), and the application itself — are deployed in a single `playground` namespace so that operator-generated secrets are directly accessible.
+The project includes two [Helm](https://helm.sh/) charts — one for infrastructure (`helm/infra/`) and one for the application (`helm/quarkus-playground/`) — for deploying to a Kubernetes cluster. Both are deployed in a single `playground` namespace so that operator-generated secrets are directly accessible to the application.
 
 ### Architecture
 
@@ -222,7 +248,7 @@ graph TB
   style skaffold fill:#fffde7,stroke:#f9a825,color:#000
 ```
 
-All components are deployed in the `playground` namespace so that secrets created by the operators are accessible to the application. The Percona Operator manages the MongoDB cluster. OpenSearch and the Bitnami Redis Cluster are deployed as Helm subcharts. The Quarkus application connects to MongoDB using credentials automatically generated by Percona, to Redis Cluster via the headless service, and to OpenSearch via its ClusterIP service.
+All components are deployed in the `playground` namespace so that secrets created by the operators are accessible to the application. The infrastructure chart (`helm/infra/`) deploys MongoDB (via Percona Operator), Redis Cluster (Bitnami), and OpenSearch as subchart dependencies. The application chart (`helm/quarkus-playground/`) is dependency-free and connects to infrastructure via configurable connection values. The Quarkus application connects to MongoDB using credentials automatically generated by Percona, to Redis Cluster via the headless service, and to OpenSearch via its ClusterIP service.
 
 For in-cluster builds (remote-dev profile), Skaffold pushes images to the local registry in the `local-registry` namespace. A DaemonSet patches containerd on every node to allow insecure pulls from the registry.
 
@@ -230,6 +256,16 @@ For in-cluster builds (remote-dev profile), Skaffold pushes images to the local 
 
 ```
 helm/
+├── infra/                                   # Infrastructure chart (MongoDB, Redis, OpenSearch)
+│   ├── Chart.yaml                           # Helm chart metadata with subchart dependencies
+│   ├── mongo-values.yaml                    # Percona MongoDB values (production)
+│   ├── mongo-values-local.yaml              # Percona MongoDB values (local/dev)
+│   ├── redis-values.yaml                    # Bitnami Redis Cluster values
+│   ├── opensearch-values.yaml               # OpenSearch values
+│   └── charts/                              # Packaged dependency charts
+│       ├── psmdb-db-1.21.2.tgz
+│       ├── redis-cluster-13.0.4.tgz
+│       └── opensearch-3.4.0.tgz
 ├── local-registry/                          # In-cluster Docker registry (for remote-dev)
 │   ├── Chart.yaml                           # Helm chart metadata
 │   ├── values.yaml                          # Registry configuration
@@ -237,23 +273,14 @@ helm/
 │       ├── deployment.yaml                  # Registry deployment
 │       ├── service.yaml                     # ClusterIP service
 │       └── containerd-patch-daemonset.yaml  # DaemonSet to patch node containerd config
-└── quarkus-playground/
+└── quarkus-playground/                      # Application chart (no infra dependencies)
     ├── Chart.yaml                           # Helm chart metadata
-    ├── Chart.lock                           # Dependency lock file
-    ├── values.yaml                          # Default configuration values
-    ├── mongo-values.yaml                    # Percona MongoDB values (production)
-    ├── mongo-local-values.yaml              # Percona MongoDB values (local/dev)
-    ├── redis-values.yaml                    # Bitnami Redis Cluster values
-    ├── opensearch-values.yaml               # OpenSearch values
-    ├── charts/                              # Packaged dependency charts
-    │   ├── psmdb-db-1.21.2.tgz             # Percona MongoDB chart dependency
-    │   └── redis-cluster-13.0.4.tgz        # Bitnami Redis Cluster chart dependency
+    ├── values.yaml                          # App configuration and connection values
     └── templates/
         ├── _helpers.tpl                     # Template helpers
-        ├── namespace.yaml                   # Namespace template
         ├── deployment.yaml                  # Deployment template
         └── service.yaml                     # Service template
-skaffold.yaml                                # Skaffold build/deploy configuration
+skaffold.yaml                                # Skaffold build/deploy configuration with profiles
 buildx-build.sh                              # Custom build script for Docker Buildx (Kubernetes driver)
 src/main/docker/
 ├── Dockerfile.jvm                           # Multi-stage production Dockerfile
@@ -287,7 +314,7 @@ helm install psmdb-operator percona/psmdb-operator \
 
 ### Configuration
 
-Key values in `values.yaml`:
+Key values in `helm/quarkus-playground/values.yaml`:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -301,6 +328,11 @@ Key values in `values.yaml`:
 | `quarkus.resources.requests.cpu` | CPU request | `1000m` |
 | `quarkus.resources.limits.memory` | Memory limit | `2Gi` |
 | `quarkus.resources.limits.cpu` | CPU limit | `1000m` |
+| `connections.mongoHosts` | MongoDB host(s) | `quarkus-mongo-mongos:27017` |
+| `connections.mongoAuthSource` | MongoDB auth database | `admin` |
+| `connections.mongoSecretName` | Secret with MongoDB credentials | `quarkus-mongo-secrets` |
+| `connections.redisHosts` | Redis host(s) | `redis://quarkus-redis-headless:6379` |
+| `connections.opensearchHosts` | OpenSearch host(s) | `quarkus-os-master-headless:9200` |
 
 ### Docker Images
 
@@ -328,51 +360,53 @@ docker run -i --rm -p 8080:8080 -p 5005:5005 quarkus/quarkus-playground:dev
 
 ### Deploying to Kubernetes
 
-**Ensure MongoDB is running first** (see Prerequisites above).
-
-#### Preview the generated manifests:
+#### Deploy infrastructure:
 
 ```shell script
-helm template my-release helm/quarkus-playground/ \
-  --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml \
-  --values helm/quarkus-playground/redis-values.yaml \
-  --values helm/quarkus-playground/opensearch-values.yaml
+helm install quarkus-infra helm/infra/ \
+  --namespace playground \
+  --values helm/infra/mongo-values.yaml \
+  --values helm/infra/redis-values.yaml \
+  --values helm/infra/opensearch-values.yaml
 ```
 
-#### Install the Helm chart:
+For lightweight local development, use `mongo-values-local.yaml` instead:
 
 ```shell script
-helm install my-release helm/quarkus-playground/ \
+helm install quarkus-infra helm/infra/ \
   --namespace playground \
-  --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml \
-  --values helm/quarkus-playground/redis-values.yaml \
-  --values helm/quarkus-playground/opensearch-values.yaml
+  --values helm/infra/mongo-values-local.yaml \
+  --values helm/infra/redis-values.yaml \
+  --values helm/infra/opensearch-values.yaml
 ```
 
-#### Upgrade an existing release:
+#### Deploy the application:
+
+**Ensure infrastructure is running first** (see above).
 
 ```shell script
-helm upgrade my-release helm/quarkus-playground/ \
+helm install quarkus helm/quarkus-playground/ \
   --namespace playground \
-  --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml \
-  --values helm/quarkus-playground/redis-values.yaml \
-  --values helm/quarkus-playground/opensearch-values.yaml
+  --values helm/quarkus-playground/values.yaml
 ```
 
 #### Override values during installation:
 
 ```shell script
-helm install my-release helm/quarkus-playground/ \
+helm install quarkus helm/quarkus-playground/ \
   --namespace playground \
   --values helm/quarkus-playground/values.yaml \
-  --values helm/quarkus-playground/mongo-values(|-local).yaml \
-  --values helm/quarkus-playground/redis-values.yaml \
-  --values helm/quarkus-playground/opensearch-values.yaml \
   --set quarkus.replicaCount=3 \
   --set quarkus.image.tag=2.0
+```
+
+If using non-sharded MongoDB (e.g., `infra -p local`), override the connection:
+
+```shell script
+helm install quarkus helm/quarkus-playground/ \
+  --namespace playground \
+  --values helm/quarkus-playground/values.yaml \
+  --set connections.mongoHosts="quarkus-mongo-rs0:27017"
 ```
 
 ### Accessing the Application
@@ -397,28 +431,34 @@ To remove all deployed resources:
 **1. Remove the Quarkus application:**
 
 ```shell script
-helm uninstall my-release --namespace playground
+helm uninstall quarkus --namespace playground
 ```
 
-**2. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
+**2. Remove infrastructure:**
+
+```shell script
+helm uninstall quarkus-infra --namespace playground
+```
+
+**3. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
 
 ```shell script
 # List and delete PVCs
 kubectl get pvc -n playground
-kubectl delete pvc -l app.kubernetes.io/instance={my-release}-mongo -n playground
+kubectl delete pvc -l app.kubernetes.io/instance=quarkus-infra-mongo -n playground
 
 # List and delete Secrets
 kubectl get secrets -n playground
-kubectl delete secret -l app.kubernetes.io/instance={my-release}-mongo -n playground
+kubectl delete secret -l app.kubernetes.io/instance=quarkus-infra-mongo -n playground
 ```
 
-**3. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
+**4. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
 
 ```shell script
 helm uninstall psmdb-operator --namespace playground
 ```
 
-**4. Delete the namespace** (optional):
+**5. Delete the namespace** (optional):
 
 ```shell script
 kubectl delete namespace playground
@@ -428,22 +468,22 @@ kubectl delete namespace playground
 
 ### Percona MongoDB Values Files
 
-Two configuration files are provided for deploying MongoDB:
+Two configuration files are provided in `helm/infra/` for deploying MongoDB:
 
-| File | Use Case              | Replicas | Sharding |
-|------|-----------------------|----------|----------|
-| `mongo-local-values.yaml` | Local                 | 1 | Disabled |
+| File | Use Case | Replicas | Sharding |
+|------|----------|----------|----------|
+| `mongo-values-local.yaml` | Local | 1 | Disabled |
 | `mongo-values.yaml` | Development | 3 | Enabled |
 
-**Local values** use relaxed settings (`unsafeFlags.replsetSize: true`) suitable for single-node development clusters.
+**Local values** use relaxed settings (`unsafeFlags.replsetSize: true`) suitable for single-node development clusters. The MongoDB endpoint is `quarkus-mongo-rs0:27017`.
 
-**Development values** configure a 3-node replica set with sharding enabled for high availability and horizontal scaling.
+**Development values** configure a 3-node replica set with sharding enabled for high availability and horizontal scaling. The MongoDB endpoint is `quarkus-mongo-mongos:27017`.
 
-> **Note:** The Helm chart includes MongoDB, Redis Cluster, and OpenSearch as dependencies (defined in `Chart.yaml`). The dependency charts are packaged in the `charts/` directory and locked in `Chart.lock`. To update dependencies, run `helm dependency update helm/quarkus-playground/`.
+> **Note:** The infrastructure chart (`helm/infra/`) includes MongoDB, Redis Cluster, and OpenSearch as subchart dependencies (defined in `Chart.yaml`). The dependency charts are packaged in the `charts/` directory. To update dependencies, run `helm dependency update helm/infra/`.
 
 ### OpenSearch Configuration
 
-OpenSearch is deployed using the [OpenSearch Helm chart](https://artifacthub.io/packages/helm/opensearch-project-helm-charts/opensearch) as a subchart dependency. The configuration is defined in `opensearch-values.yaml`.
+OpenSearch is deployed using the [OpenSearch Helm chart](https://artifacthub.io/packages/helm/opensearch-project-helm-charts/opensearch) as a subchart dependency in the infrastructure chart. The configuration is defined in `helm/infra/opensearch-values.yaml`.
 
 | Feature | Configuration |
 |---------|---------------|
@@ -459,7 +499,7 @@ Notes are automatically indexed into OpenSearch when created or updated via the 
 
 ### Redis Cluster Configuration
 
-Redis is deployed using the Bitnami Redis Cluster Helm chart as a subchart dependency. The configuration is defined in `redis-values.yaml`.
+Redis is deployed using the Bitnami Redis Cluster Helm chart as a subchart dependency in the infrastructure chart. The configuration is defined in `helm/infra/redis-values.yaml`.
 
 | Feature | Configuration |
 |---------|---------------|

@@ -1,0 +1,16 @@
+apiVersion: v2
+name: quarkus-infra
+description: Infrastructure dependencies for Quarkus Playground (MongoDB, Redis, OpenSearch)
+type: application
+version: 0.1.0
+dependencies:
+  - name: psmdb-db
+    version: 1.21.2
+    repository: https://percona.github.io/percona-helm-charts
+    alias: mongo
+  - name: redis-cluster
+    version: 13.0.4
+    repository: https://charts.bitnami.com/bitnami
+  - name: opensearch
+    version: 3.4.0
+    repository: https://opensearch-project.github.io/helm-charts/

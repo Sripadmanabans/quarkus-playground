@@ -48,29 +48,3 @@ Namespace name
 {{- define "quarkus-playground.namespace" -}}
 {{- .Release.Namespace }}
 {{- end }}
-
-{{/*
-Create a connection hosts to monogo.
-*/}}
-{{- define "quarkus-playground.mongoHosts" -}}
-{{- if .Values.mongo.sharding.enabled }}
-{{- printf "quarkus-mongo-mongos.%s.svc.cluster.local:27017" .Release.Namespace }}
-{{- else }}
-{{- printf "quarkus-mongo-rs0.%s.svc.cluster.local:27017" .Release.Namespace }}
-{{- end }}
-{{- end }}
-
-{{/*
-Create a connection hosts to redis.
-*/}}
-{{- define "quarkus-playground.redisHosts" -}}
-{{- printf "redis://quarkus-redis-headless.%s.svc.cluster.local:6379" .Release.Namespace }}
-{{- end }}
-
-{{/*
-Create a connection host to OpenSearch.
-The service name follows the OpenSearch Helm chart convention using fullnameOverride.
-*/}}
-{{- define "quarkus-playground.opensearchHosts" -}}
-{{- printf "quarkus-os-master-headless.%s.svc.cluster.local:9200" .Release.Namespace }}
-{{- end }}

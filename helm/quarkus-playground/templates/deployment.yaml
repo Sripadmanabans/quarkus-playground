@@ -23,24 +23,24 @@ spec:
             - containerPort: {{ .Values.quarkus.service.targetPort }}
           env:
             - name: QUARKUS_MONGODB_HOSTS
-              value: "{{- include "quarkus-playground.mongoHosts" .}}"
+              value: {{ .Values.connections.mongoHosts | quote }}
             - name: QUARKUS_MONGODB_CREDENTIALS_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: quarkus-mongo-secrets
+                  name: {{ .Values.connections.mongoSecretName }}
                   key: MONGODB_DATABASE_ADMIN_USER
             - name: QUARKUS_MONGODB_CREDENTIALS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: quarkus-mongo-secrets
+                  name: {{ .Values.connections.mongoSecretName }}
                   key: MONGODB_DATABASE_ADMIN_PASSWORD
             - name: QUARKUS_MONGODB_CREDENTIALS_AUTH_SOURCE
-              value: "{{ .Values.mongo.authDatabase }}"
+              value: {{ .Values.connections.mongoAuthSource | quote }}
             - name: QUARKUS_REDIS_HOSTS
-              value: "{{- include "quarkus-playground.redisHosts" .}}"
+              value: {{ .Values.connections.redisHosts | quote }}
             - name: QUARKUS_REDIS_CLIENT_TYPE
               value: "cluster"
             - name: QUARKUS_OPENSEARCH_HOSTS
-              value: "{{- include "quarkus-playground.opensearchHosts" .}}"
+              value: {{ .Values.connections.opensearchHosts | quote }}
           resources:
             {{- toYaml .Values.quarkus.resources | nindent 12 }}

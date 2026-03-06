@@ -21,3 +21,10 @@ quarkus:
     limits:
       memory: "2Gi"
       cpu: "2000m"
+
+connections:
+  mongoHosts: "quarkus-mongo-mongos:27017"
+  mongoAuthSource: "admin"
+  mongoSecretName: "quarkus-mongo-secrets"
+  redisHosts: "redis://quarkus-redis-headless:6379"
+  opensearchHosts: "quarkus-os-master-headless:9200"

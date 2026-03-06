@@ -1,6 +1,35 @@
 apiVersion: skaffold/v4beta13
 kind: Config
 metadata:
+  name: infra
+
+deploy:
+  helm:
+    releases:
+      - name: quarkus-infra
+        chartPath: helm/infra
+        valuesFiles:
+          - helm/infra/mongo-values.yaml
+          - helm/infra/redis-values.yaml
+          - helm/infra/opensearch-values.yaml
+        skipBuildDependencies: true
+
+profiles:
+  # Lightweight local values: single Mongo replica, no sharding
+  # Usage: skaffold run -m infra -p local or skaffold dev -m infra
+  - name: local
+    activation:
+      - command: dev
+    patches:
+      - op: replace
+        path: /deploy/helm/releases/0/valuesFiles/0
+        value: helm/infra/mongo-values-local.yaml
+
+---
+
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
   name: quarkus
 
 build:
@@ -16,9 +45,6 @@ deploy:
         chartPath: helm/quarkus-playground
         valuesFiles:
           - helm/quarkus-playground/values.yaml
-          - helm/quarkus-playground/mongo-values.yaml
-          - helm/quarkus-playground/redis-values.yaml
-          - helm/quarkus-playground/opensearch-values.yaml
         setValueTemplates:
           quarkus.image.repository: "{{.IMAGE_REPO_quarkus_quarkus_playground}}"
           quarkus.image.tag: "{{.IMAGE_TAG_quarkus_quarkus_playground}}"
@@ -31,15 +57,15 @@ portForward:
     localPort: 8080
 
 profiles:
+  # Dev Dockerfile with hot reload
+  # Activates automatically on: skaffold dev
   - name: dev
     activation:
       - command: dev
     patches:
-      # Use the dev Dockerfile with Quarkus Dev Mode
       - op: replace
         path: /build/artifacts/0/docker/dockerfile
         value: src/main/docker/Dockerfile.dev
-      # Enable manual file sync for hot reload
       - op: add
         path: /build/artifacts/0/sync
         value:
@@ -52,11 +78,14 @@ profiles:
               dest: build.gradle.kts
             - src: 'gradle/libs.versions.toml'
               dest: gradle/libs.versions.toml
-      # Use lightweight local mongo values instead of production values
-      - op: replace
-        path: /deploy/helm/releases/0/valuesFiles/1
-        value: helm/quarkus-playground/mongo-values-local.yaml
+      # Non-sharded mongo endpoint (matches infra -p local)
+      - op: add
+        path: /deploy/helm/releases/0/setValues
+        value:
+          connections.mongoHosts: "quarkus-mongo-rs0:27017"
 
+  # In-cluster registry and buildx for remote dev
+  # Activates automatically on: REMOTE_DEV=true skaffold dev
   - name: remote-dev
     activation:
       - command: dev
