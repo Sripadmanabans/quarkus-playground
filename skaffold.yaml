@@ -83,6 +83,14 @@ profiles:
         path: /deploy/helm/releases/0/setValues
         value:
           connections.mongoHosts: "quarkus-mongo-rs0:27017"
+      # Forward JDWP debug port (Quarkus dev mode listens on 5005 by default)
+      - op: add
+        path: /portForward/-
+        value:
+          resourceType: deployment
+          resourceName: quarkus-deployment
+          port: 5005
+          localPort: 5005
 
   # In-cluster registry and buildx for remote dev
   # Activates automatically on: REMOTE_DEV=true skaffold dev
