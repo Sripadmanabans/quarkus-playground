@@ -58,3 +58,6 @@ bin/
 
 # TLS Certificates
 .certs/
+
+# DevSpace
+.devspace/

@@ -1,5 +1,0 @@
-apiVersion: v2
-name: local-registry
-description: A minimal in-cluster Docker registry for dev builds
-type: application
-version: 0.1.0

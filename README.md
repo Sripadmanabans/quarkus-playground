@@ -11,7 +11,7 @@ If you want to learn more about Quarkus, please visit its website: <https://quar
 - **Redis Cluster** integration using the blocking Quarkus Redis client on virtual threads
 - **OpenSearch** integration for full-text search on notes (dual-write from MongoDB)
 - **Kubernetes deployment** with separate Helm charts for infrastructure (MongoDB, Redis, OpenSearch) and the application
-- **Skaffold dev workflow** with profile-based infra/app separation, hot reload via file sync, and in-cluster image builds
+- **DevSpace dev workflow** with profile-based infra/app separation, hot reload via file sync, and in-cluster image builds
 
 > **Why Java instead of Kotlin?** The project was originally written in Kotlin, but Quarkus dev mode hot reload was unreliable when used with Kotlin serialization. Switching to Java with Jackson and virtual threads resolved the hot reload issues while keeping the code simple and synchronous.
 
@@ -104,34 +104,32 @@ You can run your application in dev mode that enables live coding using:
 
 > **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
 
-### Skaffold Dev Workflow
+### DevSpace Dev Workflow
 
-[Skaffold](https://skaffold.dev/) automates the build-deploy-debug loop for Kubernetes. The configuration uses two Skaffold modules (`infra` and `quarkus`) so their lifecycles can be managed independently.
+[DevSpace](https://devspace.sh/) automates the build-deploy-debug loop for Kubernetes. The configuration uses named pipelines and a `dev` profile so infra and app lifecycles can be managed independently.
 
-#### Modules and Profiles
+#### Pipelines and Profiles
 
-| Module | Profile | Command | Description |
-|--------|---------|---------|-------------|
-| `infra` | (default) | `skaffold run -m infra` | Infrastructure with production-like values |
-| `infra` | `local` | `skaffold run -m infra -p local` | Infrastructure with lightweight single-node MongoDB |
-| `quarkus` | (default) | `skaffold run -m quarkus` | App with production Dockerfile |
-| `quarkus` | `dev` | `skaffold dev -m quarkus` | App with dev Dockerfile and hot reload (auto-activates on `skaffold dev`) |
-| `quarkus` | `remote-dev` | `REMOTE_DEV=true skaffold dev -m quarkus` | App with in-cluster builds via Buildx (auto-activates on `skaffold dev` with `REMOTE_DEV=true`) |
-| both | | `skaffold run` | Full stack — infra + app |
-
-The modules are independent — use `-m` to target a specific module. Running without `-m` deploys both.
+| Pipeline / Command | Profile | DevSpace Command | Description |
+|--------------------|---------|-----------------|-------------|
+| `infra` | (default) | `devspace run infra` | Deploy only infrastructure with production-like values |
+| `infra-local` | `dev` | `devspace run infra-local` | Deploy infrastructure with lightweight single-node MongoDB |
+| `app` | (default) | `devspace run app` | Build and deploy only the Quarkus application |
+| `dev` | `dev` | `devspace run dev` | App with dev Dockerfile, hot reload, and port-forward |
+| `deploy` | (default) | `devspace deploy` | Full stack — build image + deploy infra + deploy app |
+| (remote dev) | `remote-dev` | `REMOTE_DEV=true devspace dev` | In-cluster builds; auto-activates when `REMOTE_DEV=true` |
 
 #### Daily Workflow
 
 ```shell script
 # Deploy infrastructure once (lightweight local setup)
-skaffold run -m infra -p local
+devspace run infra-local
 
 # Iterate on the app — restart as many times as you want, infra stays up
-skaffold dev -m quarkus
+devspace run dev
 
-# Tear down infrastructure when done
-skaffold delete -m infra
+# Tear down all deployed resources when done
+devspace purge
 ```
 
 #### Full Stack (One Command)
@@ -139,31 +137,28 @@ skaffold delete -m infra
 For a quick start or CI, deploy everything at once:
 
 ```shell script
-skaffold run
+devspace deploy
 ```
 
-This deploys infra (with production-like values) and the app in a single command.
+This builds the image and deploys both infra (with production-like values) and the app.
 
 #### Local Dev
 
-`skaffold dev -m quarkus` auto-activates the `dev` profile which:
+`devspace run dev` (equivalent to `devspace dev --profile dev`) activates the `dev` profile which:
 - Builds with `Dockerfile.dev` running Quarkus Dev Mode
 - Syncs Java source files and Gradle config into the running container for hot reload
-- Overrides the MongoDB connection to use the non-sharded endpoint (matching `infra -p local`)
-- Port-forwards the application to `localhost:8080`
+- Overrides the MongoDB connection to use the non-sharded endpoint (matching `infra-local`)
+- Port-forwards the application to `localhost:8080` and JDWP debugger to `localhost:5005`
 
 #### Remote Dev (In-Cluster Builds)
 
-For environments where Docker is not available locally (e.g., remote Kubernetes clusters):
+For environments where Docker is not available locally (e.g., Coder workspaces in Kubernetes):
 
 ```shell script
-REMOTE_DEV=true skaffold dev -m quarkus
+REMOTE_DEV=true devspace dev
 ```
 
-This auto-activates the `remote-dev` profile which:
-- Builds images in-cluster using Docker Buildx with the Kubernetes driver
-- Pushes to the in-cluster local registry (`local-registry.local-registry.svc.cluster.local:5000`)
-- Uses `buildx-build.sh` as the custom build command
+This auto-activates the `remote-dev` profile (which inherits from `dev`) which builds images in-cluster and pushes them to DevSpace's built-in local registry. No manual registry or Buildx setup is required — DevSpace manages this automatically.
 
 ## Packaging and running the application
 
@@ -213,9 +208,8 @@ The project includes two [Helm](https://helm.sh/) charts — one for infrastruct
 ```mermaid
 graph TB
   subgraph cluster["Kubernetes Cluster"]
-    subgraph localreg["local-registry namespace"]
-      registry["Local Registry\n(Docker Registry)"]
-      daemonset["containerd\nDaemonSet Patch"]
+    subgraph devspace_reg["DevSpace managed"]
+      registry["Local Registry\n(built-in)"]
     end
     subgraph playground["playground namespace"]
       percona["Percona Operator"]
@@ -231,26 +225,24 @@ graph TB
     end
   end
 
-  skaffold["Skaffold"] -->|build & push| registry
+  devspace["DevSpace"] -->|build & push| registry
   registry -->|pull| app
-  daemonset -.->|patches nodes| cluster
 
   style cluster fill:none,stroke:#999
   style playground fill:none,stroke:#999,color:#999
-  style localreg fill:none,stroke:#999,color:#999
+  style devspace_reg fill:none,stroke:#999,color:#999
   style app fill:#fff3e0,stroke:#fb8c00,color:#000
   style mongo fill:#e3f2fd,stroke:#1e88e5,color:#000
   style redis fill:#fce4ec,stroke:#e53935,color:#000
   style os fill:#f3e5f5,stroke:#8e24aa,color:#000
   style percona fill:#e8f0fe,stroke:#4285f4,color:#000
   style registry fill:#e8f5e9,stroke:#43a047,color:#000
-  style daemonset fill:#e8f5e9,stroke:#43a047,color:#000
-  style skaffold fill:#fffde7,stroke:#f9a825,color:#000
+  style devspace fill:#fffde7,stroke:#f9a825,color:#000
 ```
 
 All components are deployed in the `playground` namespace so that secrets created by the operators are accessible to the application. The infrastructure chart (`helm/infra/`) deploys MongoDB (via Percona Operator), Redis Cluster (Bitnami), and OpenSearch as subchart dependencies. The application chart (`helm/quarkus-playground/`) is dependency-free and connects to infrastructure via configurable connection values. The Quarkus application connects to MongoDB using credentials automatically generated by Percona, to Redis Cluster via the headless service, and to OpenSearch via its ClusterIP service.
 
-For in-cluster builds (remote-dev profile), Skaffold pushes images to the local registry in the `local-registry` namespace. A DaemonSet patches containerd on every node to allow insecure pulls from the registry.
+For in-cluster builds (remote-dev profile), DevSpace automatically manages a built-in local registry and configures nodes to pull from it — no manual registry setup is required.
 
 ### Directory Structure
 
@@ -266,13 +258,6 @@ helm/
 │       ├── psmdb-db-1.21.2.tgz
 │       ├── redis-cluster-13.0.4.tgz
 │       └── opensearch-3.4.0.tgz
-├── local-registry/                          # In-cluster Docker registry (for remote-dev)
-│   ├── Chart.yaml                           # Helm chart metadata
-│   ├── values.yaml                          # Registry configuration
-│   └── templates/
-│       ├── deployment.yaml                  # Registry deployment
-│       ├── service.yaml                     # ClusterIP service
-│       └── containerd-patch-daemonset.yaml  # DaemonSet to patch node containerd config
 └── quarkus-playground/                      # Application chart (no infra dependencies)
     ├── Chart.yaml                           # Helm chart metadata
     ├── values.yaml                          # App configuration and connection values
@@ -280,8 +265,7 @@ helm/
         ├── _helpers.tpl                     # Template helpers
         ├── deployment.yaml                  # Deployment template
         └── service.yaml                     # Service template
-skaffold.yaml                                # Skaffold build/deploy configuration with profiles
-buildx-build.sh                              # Custom build script for Docker Buildx (Kubernetes driver)
+devspace.yaml                                # DevSpace build/deploy configuration with profiles and pipelines
 src/main/docker/
 ├── Dockerfile.jvm                           # Multi-stage production Dockerfile
 └── Dockerfile.dev                           # Quarkus Dev Mode Dockerfile
@@ -360,53 +344,17 @@ docker run -i --rm -p 8080:8080 -p 5005:5005 quarkus/quarkus-playground:dev
 
 ### Deploying to Kubernetes
 
-#### Deploy infrastructure:
+Use DevSpace to deploy — it builds the image and applies the Helm charts automatically:
 
 ```shell script
-helm install quarkus-infra helm/infra/ \
-  --namespace playground \
-  --values helm/infra/mongo-values.yaml \
-  --values helm/infra/redis-values.yaml \
-  --values helm/infra/opensearch-values.yaml
-```
+# Full stack (infra + app)
+devspace deploy
 
-For lightweight local development, use `mongo-values-local.yaml` instead:
+# Infra only (lightweight local setup)
+devspace run infra-local
 
-```shell script
-helm install quarkus-infra helm/infra/ \
-  --namespace playground \
-  --values helm/infra/mongo-values-local.yaml \
-  --values helm/infra/redis-values.yaml \
-  --values helm/infra/opensearch-values.yaml
-```
-
-#### Deploy the application:
-
-**Ensure infrastructure is running first** (see above).
-
-```shell script
-helm install quarkus helm/quarkus-playground/ \
-  --namespace playground \
-  --values helm/quarkus-playground/values.yaml
-```
-
-#### Override values during installation:
-
-```shell script
-helm install quarkus helm/quarkus-playground/ \
-  --namespace playground \
-  --values helm/quarkus-playground/values.yaml \
-  --set quarkus.replicaCount=3 \
-  --set quarkus.image.tag=2.0
-```
-
-If using non-sharded MongoDB (e.g., `infra -p local`), override the connection:
-
-```shell script
-helm install quarkus helm/quarkus-playground/ \
-  --namespace playground \
-  --values helm/quarkus-playground/values.yaml \
-  --set connections.mongoHosts="quarkus-mongo-rs0:27017"
+# App only (infra must already be running)
+devspace run app
 ```
 
 ### Accessing the Application
@@ -426,42 +374,25 @@ curl http://<NODE_IP>:<NODE_PORT>/increment
 
 ### Cleanup
 
-To remove all deployed resources:
-
-**1. Remove the Quarkus application:**
-
 ```shell script
-helm uninstall quarkus --namespace playground
+# Remove all DevSpace-managed deployments
+devspace purge
 ```
 
-**2. Remove infrastructure:**
+PVCs and Secrets are retained by default to prevent data loss. To remove them:
 
 ```shell script
-helm uninstall quarkus-infra --namespace playground
-```
-
-**3. Clean up remaining resources** (PVCs and Secrets are retained by default to prevent data loss):
-
-```shell script
-# List and delete PVCs
 kubectl get pvc -n playground
 kubectl delete pvc -l app.kubernetes.io/instance=quarkus-infra-mongo -n playground
 
-# List and delete Secrets
 kubectl get secrets -n playground
 kubectl delete secret -l app.kubernetes.io/instance=quarkus-infra-mongo -n playground
 ```
 
-**4. Remove the Percona Operator** (optional, if no other MongoDB clusters depend on it):
+To remove the Percona Operator (optional, if no other MongoDB clusters depend on it):
 
 ```shell script
 helm uninstall psmdb-operator --namespace playground
-```
-
-**5. Delete the namespace** (optional):
-
-```shell script
-kubectl delete namespace playground
 ```
 
 > **Note:** See the [Percona documentation](https://docs.percona.com/percona-operator-for-mongodb/delete.html) for detailed cleanup instructions.
@@ -510,41 +441,6 @@ Redis is deployed using the Bitnami Redis Cluster Helm chart as a subchart depen
 
 The Quarkus application connects to Redis via the headless service at `<release>-redis-cluster-headless.<namespace>.svc.cluster.local:6379`.
 
-### Local Registry (In-Cluster)
-
-The `helm/local-registry/` chart deploys a lightweight Docker registry inside the cluster, used by the `remote-dev` Skaffold profile for in-cluster image builds.
-
-#### Components
-
-| Resource | Description |
-|----------|-------------|
-| **Deployment** | Runs the `registry:3` image with an `emptyDir` volume (non-persistent) |
-| **Service** | ClusterIP service on port 5000 (`local-registry.local-registry.svc.cluster.local:5000`) |
-| **DaemonSet** | Patches containerd on every node to trust the registry as an insecure registry and adds a `/etc/hosts` entry so the host network can resolve the registry FQDN |
-
-#### Install
-
-```shell script
-kubectl create namespace local-registry
-helm install local-registry helm/local-registry -n local-registry
-```
-
-#### Upgrade
-
-```shell script
-helm upgrade local-registry helm/local-registry -n local-registry
-kubectl rollout restart daemonset/containerd-insecure-registry-patch -n local-registry
-```
-
-> **Note:** Restarting the DaemonSet after an upgrade ensures that all nodes pick up the latest containerd configuration changes.
-
-#### Uninstall
-
-```shell script
-helm uninstall local-registry -n local-registry
-kubectl delete namespace local-registry
-```
-
 ## Future Enhancements
 
 The MongoDB setup supports additional features:
@@ -555,8 +451,7 @@ The MongoDB setup supports additional features:
 
 ## Related Guides
 
-- Skaffold ([docs](https://skaffold.dev/docs/)): Build and deploy to Kubernetes with a single command
-- Docker Buildx ([docs](https://docs.docker.com/build/builders/drivers/kubernetes/)): Buildx Kubernetes driver for in-cluster builds
+- DevSpace ([docs](https://devspace.sh/docs/)): Build and deploy to Kubernetes with a single command, with built-in local registry support
 - Virtual Threads ([guide](https://quarkus.io/guides/virtual-threads)): Virtual thread support in Quarkus
 - REST Virtual Threads ([guide](https://quarkus.io/guides/rest-virtual-threads)): Use virtual threads in REST applications
 - MongoDB ([guide](https://quarkus.io/guides/mongodb)): Connect to MongoDB datastores

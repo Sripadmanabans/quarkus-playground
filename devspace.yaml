@@ -1,0 +1,119 @@
+version: v2beta1
+name: quarkus-playground
+
+localRegistry:
+  enabled: true
+
+images:
+  quarkus-playground:
+    image: quarkus-playground
+    dockerfile: src/main/docker/Dockerfile.jvm
+    context: .
+
+deployments:
+  quarkus-infra:
+    helm:
+      chart:
+        name: ./helm/infra
+      valuesFiles:
+        - helm/infra/mongo-values.yaml
+        - helm/infra/redis-values.yaml
+        - helm/infra/opensearch-values.yaml
+
+  quarkus:
+    helm:
+      chart:
+        name: ./helm/quarkus-playground
+      valuesFiles:
+        - helm/quarkus-playground/values.yaml
+      values:
+        quarkus:
+          image:
+            repository: ${runtime.images.quarkus-playground.image}
+            tag: ${runtime.images.quarkus-playground.tag}
+
+dev:
+  quarkus-app:
+    imageSelector: ${runtime.images.quarkus-playground.image}
+    logs: {}
+    ports:
+      - port: "8080:8080"
+
+pipelines:
+  dev:
+    run: |
+      build_images --all
+      create_deployments --all
+      start_dev --all
+  deploy:
+    run: |
+      build_images --all
+      create_deployments --all
+  infra:
+    run: |
+      create_deployments quarkus-infra
+  app:
+    run: |
+      build_images quarkus-playground
+      create_deployments quarkus
+
+commands:
+  dev:
+    command: devspace dev --profile dev $@
+    description: Start dev mode with hot reload (equivalent to skaffold dev)
+  infra:
+    command: devspace run-pipeline infra $@
+    description: Deploy only the infra stack (Mongo, Redis, OpenSearch)
+  infra-local:
+    command: devspace run-pipeline infra --profile dev $@
+    description: Deploy infra with single-replica local Mongo
+  app:
+    command: devspace run-pipeline app $@
+    description: Deploy only the Quarkus application
+
+profiles:
+  # Activates Dockerfile.dev, file sync, JDWP debug port, and local Mongo.
+  # Unlike Skaffold, DevSpace cannot auto-activate profiles based on the
+  # command (dev vs deploy), so pass --profile dev explicitly or use the
+  # convenience workflow: REMOTE_DEV=true devspace dev (see remote-dev below).
+  - name: dev
+    patches:
+      - op: replace
+        path: images.quarkus-playground.dockerfile
+        value: src/main/docker/Dockerfile.dev
+      - op: replace
+        path: deployments.quarkus-infra.helm.valuesFiles
+        value:
+          - helm/infra/mongo-values-local.yaml
+          - helm/infra/redis-values.yaml
+          - helm/infra/opensearch-values.yaml
+    merge:
+      dev:
+        quarkus-app:
+          ports:
+            - port: "8080:8080"
+            - port: "5005:5005"
+          sync:
+            - path: .:/app
+              excludePaths:
+                - helm/
+                - .git/
+                - .gradle/
+                - .devspace/
+                - build/
+      deployments:
+        quarkus:
+          helm:
+            values:
+              connections:
+                mongoHosts: "quarkus-mongo-rs0:27017"
+
+  # Remote development with in-cluster builds.
+  # Inherits everything from the dev profile via `parent`.
+  # Auto-activates when REMOTE_DEV=true is set in the environment.
+  # DevSpace automatically handles pushing to the local registry configured above.
+  - name: remote-dev
+    parent: dev
+    activation:
+      - env:
+          REMOTE_DEV: "true"

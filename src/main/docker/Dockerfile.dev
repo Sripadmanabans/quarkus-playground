@@ -17,6 +17,9 @@
 FROM registry.access.redhat.com/ubi9/openjdk-25:1.24
 
 USER root
+
+RUN microdnf install -y gzip && microdnf clean all
+
 WORKDIR /app
 
 # Copy Gradle wrapper and build config first for dependency caching
