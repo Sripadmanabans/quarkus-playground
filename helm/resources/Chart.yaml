@@ -1,5 +1,5 @@
 apiVersion: v2
-name: quarkus-infra
+name: quarkus-resources
 description: Infrastructure dependencies for Quarkus Playground (MongoDB, Redis, OpenSearch)
 type: application
 version: 0.1.0

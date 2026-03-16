@@ -11,14 +11,14 @@ images:
     context: .
 
 deployments:
-  quarkus-infra:
+  quarkus-resources:
     helm:
       chart:
-        name: ./helm/infra
+        name: ./helm/resources
       valuesFiles:
-        - helm/infra/mongo-values.yaml
-        - helm/infra/redis-values.yaml
-        - helm/infra/opensearch-values.yaml
+        - helm/resources/mongo-values.yaml
+        - helm/resources/redis-values.yaml
+        - helm/resources/opensearch-values.yaml
 
   quarkus:
     helm:
@@ -49,9 +49,9 @@ pipelines:
     run: |
       build_images --all
       create_deployments --all
-  infra:
+  resources:
     run: |
-      create_deployments quarkus-infra
+      create_deployments quarkus-resources
   app:
     run: |
       build_images quarkus-playground
@@ -61,12 +61,12 @@ commands:
   dev:
     command: devspace dev --profile dev $@
     description: Start dev mode with hot reload (equivalent to skaffold dev)
-  infra:
-    command: devspace run-pipeline infra $@
-    description: Deploy only the infra stack (Mongo, Redis, OpenSearch)
-  infra-local:
-    command: devspace run-pipeline infra --profile dev $@
-    description: Deploy infra with single-replica local Mongo
+  resources:
+    command: devspace run-pipeline resources $@
+    description: Deploy only the resources stack (Mongo, Redis, OpenSearch)
+  local-resources:
+    command: devspace run-pipeline resources --profile dev $@
+    description: Deploy resources with single-replica local Mongo
   app:
     command: devspace run-pipeline app $@
     description: Deploy only the Quarkus application
@@ -82,11 +82,11 @@ profiles:
         path: images.quarkus-playground.dockerfile
         value: src/main/docker/Dockerfile.dev
       - op: replace
-        path: deployments.quarkus-infra.helm.valuesFiles
+        path: deployments.quarkus-resources.helm.valuesFiles
         value:
-          - helm/infra/mongo-values-local.yaml
-          - helm/infra/redis-values.yaml
-          - helm/infra/opensearch-values.yaml
+          - helm/resources/mongo-values-local.yaml
+          - helm/resources/redis-values.yaml
+          - helm/resources/opensearch-values.yaml
     merge:
       dev:
         quarkus-app:
